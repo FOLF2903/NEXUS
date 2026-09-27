@@ -1,0 +1,480 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: 'Cinzel', 'Merriweather', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-gold: #c9a227;
+  --color-gold-hover: #dbb333;
+  --color-gold-muted: #987515;
+}
+
+/* ==========================================================================
+   SISTEMA DE TEMAS COMPLETOS (Fase 15)
+   ========================================================================== */
+
+/* Tema 1: Oscuro Dorado (Aspecto clásico de mesa de rol por defecto) */
+:root,
+:root[data-tema="oscuro-dorado"] {
+  --color-fondo: #1a1612;
+  --color-superficie: #26201a;
+  --color-superficie-elevada: #332b24;
+  --color-superficie-hover: #40362e;
+  --color-card-bg: #26201a;
+  --color-borde: #4d3d30;
+  --color-borde-subtle: #3a2e24;
+  --color-texto: #e8dcc8;
+  --color-texto-muted: #b8a892;
+  --color-texto-faint: #887865;
+  --color-acento: #c9a227;
+  --color-acento-hover: #dbb333;
+  --color-acento-muted: #987515;
+  --color-acento-subtle: rgba(201, 162, 39, 0.15);
+  --color-input-bg: #15110e;
+  --color-input-border: #4d3d30;
+  --color-header-bg: rgba(26, 22, 18, 0.95);
+  --color-modal-bg: #221c18;
+  --color-scrollbar-track: #15110e;
+  --color-scrollbar-thumb: #3d3228;
+  color-scheme: dark;
+}
+
+/* Tema 2: Oscuro Azul (Noche Arcano) */
+:root[data-tema="oscuro-azul"] {
+  --color-fondo: #0a0f18;
+  --color-superficie: #141d2c;
+  --color-superficie-elevada: #1d293d;
+  --color-superficie-hover: #26364f;
+  --color-card-bg: #141d2c;
+  --color-borde: #2c3e58;
+  --color-borde-subtle: #1e2c3f;
+  --color-texto: #d8e0e8;
+  --color-texto-muted: #9bb0c4;
+  --color-texto-faint: #6c8299;
+  --color-acento: #38bdf8;
+  --color-acento-hover: #60a5fa;
+  --color-acento-muted: #0284c7;
+  --color-acento-subtle: rgba(56, 189, 248, 0.16);
+  --color-input-bg: #0c121d;
+  --color-input-border: #2c3e58;
+  --color-header-bg: rgba(10, 15, 24, 0.95);
+  --color-modal-bg: #131c2b;
+  --color-scrollbar-track: #0c121d;
+  --color-scrollbar-thumb: #25364d;
+  color-scheme: dark;
+}
+
+/* Tema 3: Claro Pergamino (Papiro Fantasía y Tomo Antiguo) */
+:root[data-tema="claro-pergamino"] {
+  --color-fondo: #f5ecd8;
+  --color-superficie: #fdf8ed;
+  --color-superficie-elevada: #f1e4c7;
+  --color-superficie-hover: #e8d7b3;
+  --color-card-bg: #fdf8ed;
+  --color-borde: #cbb48b;
+  --color-borde-subtle: #dbcaa9;
+  --color-texto: #261b0c;
+  --color-texto-muted: #5e4828;
+  --color-texto-faint: #8a7049;
+  --color-acento: #8b5a1f;
+  --color-acento-hover: #a16b25;
+  --color-acento-muted: #6b4313;
+  --color-acento-subtle: rgba(139, 90, 31, 0.14);
+  --color-input-bg: #fffcf5;
+  --color-input-border: #cbb48b;
+  --color-header-bg: rgba(245, 236, 216, 0.96);
+  --color-modal-bg: #fdf8ed;
+  --color-scrollbar-track: #eee2c7;
+  --color-scrollbar-thumb: #cbb892;
+  color-scheme: light;
+}
+
+/* Tema 4: Claro Moderno (Grimorio Limpio y de Alto Contraste) */
+:root[data-tema="claro-moderno"] {
+  --color-fondo: #f3f4f6;
+  --color-superficie: #ffffff;
+  --color-superficie-elevada: #e5e7eb;
+  --color-superficie-hover: #f3f4f6;
+  --color-card-bg: #ffffff;
+  --color-borde: #d1d5db;
+  --color-borde-subtle: #e5e7eb;
+  --color-texto: #111827;
+  --color-texto-muted: #4b5563;
+  --color-texto-faint: #6b7280;
+  --color-acento: #0284c7;
+  --color-acento-hover: #0369a1;
+  --color-acento-muted: #075985;
+  --color-acento-subtle: rgba(2, 132, 199, 0.12);
+  --color-input-bg: #ffffff;
+  --color-input-border: #d1d5db;
+  --color-header-bg: rgba(255, 255, 255, 0.96);
+  --color-modal-bg: #ffffff;
+  --color-scrollbar-track: #f3f4f6;
+  --color-scrollbar-thumb: #d1d5db;
+  color-scheme: light;
+}
+
+/* Base Body Application */
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-acento);
+}
+
+/* ==========================================================================
+   ADAPTACIÓN UNIVERSAL DE CARDS, CAJAS Y CONTENEDORES OSCUROS
+   ========================================================================== */
+
+/* Cabecera Principal */
+header {
+  background-color: var(--color-header-bg) !important;
+  border-color: var(--color-borde) !important;
+}
+
+/* Modales y Paneles Flotantes */
+[role="dialog"],
+[role="menu"],
+[id$="-modal-dialog"],
+[id$="-modal-content"],
+#configuracion-dropdown-panel,
+#theme-selector-dropdown {
+  background-color: var(--color-modal-bg) !important;
+  border-color: var(--color-borde) !important;
+  color: var(--color-texto) !important;
+}
+
+/* Todas las tarjetas, cajas y contenedores con tonos hex oscuros */
+.bg-\[\#080c14\],
+.bg-\[\#090d16\],
+.bg-\[\#0a0f18\],
+.bg-\[\#0b0f17\],
+.bg-\[\#0b0f17\]\/30,
+.bg-\[\#0b0f17\]\/50,
+.bg-\[\#0b0f17\]\/60,
+.bg-\[\#0b0f17\]\/90,
+.bg-\[\#0b0f17\]\/95,
+.bg-\[\#0b101a\],
+.bg-\[\#0c121e\],
+.bg-\[\#0d121d\],
+.bg-\[\#0d131f\],
+.bg-\[\#0d1424\],
+.bg-\[\#0e1422\],
+.bg-\[\#0e1522\],
+.bg-\[\#0f141f\],
+.bg-\[\#0f1624\],
+.bg-\[\#0f172a\],
+.bg-\[\#111827\],
+.bg-\[\#111827\]\/70,
+.bg-\[\#111827\]\/90,
+.bg-\[\#131b2a\],
+.bg-\[\#182338\],
+.bg-\[\#1e293b\] {
+  background-color: var(--color-superficie) !important;
+  color: var(--color-texto) !important;
+  border-color: var(--color-borde) !important;
+}
+
+/* Contenedores con fondo secundario o ligeramente elevado */
+.bg-slate-900,
+.bg-slate-900\/95,
+.bg-slate-900\/90,
+.bg-slate-900\/80,
+.bg-slate-900\/70,
+.bg-slate-900\/60,
+.bg-slate-900\/50,
+.bg-slate-900\/40,
+.bg-slate-900\/30,
+.bg-slate-850,
+.bg-slate-800,
+.bg-slate-800\/90,
+.bg-slate-800\/80,
+.bg-slate-800\/60,
+.bg-slate-800\/40,
+.bg-slate-950\/40,
+.bg-slate-950\/50 {
+  background-color: var(--color-superficie-elevada) !important;
+  border-color: var(--color-borde) !important;
+  color: var(--color-texto) !important;
+}
+
+/* Inputs, Textareas y Selects */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  background-color: var(--color-input-bg) !important;
+  color: var(--color-texto) !important;
+  border-color: var(--color-input-border) !important;
+  font-size: 14px !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-acento) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px var(--color-acento) !important;
+}
+
+/* Botón primario de acción */
+.bg-\[\#c9a227\],
+.bg-amber-500 {
+  background-color: var(--color-acento) !important;
+}
+.bg-\[\#c9a227\]:hover,
+.bg-amber-500:hover {
+  background-color: var(--color-acento-hover) !important;
+}
+
+[data-tema="oscuro-dorado"] .bg-\[\#c9a227\],
+[data-tema="oscuro-dorado"] .bg-amber-500 {
+  color: #111827 !important;
+}
+[data-tema="oscuro-dorado"] .bg-\[\#c9a227\] svg,
+[data-tema="oscuro-dorado"] .bg-amber-500 svg {
+  stroke: #111827 !important;
+}
+
+[data-tema="oscuro-azul"] .bg-\[\#c9a227\],
+[data-tema="oscuro-azul"] .bg-amber-500,
+[data-tema^="claro"] .bg-\[\#c9a227\],
+[data-tema^="claro"] .bg-amber-500 {
+  color: #ffffff !important;
+}
+[data-tema="oscuro-azul"] .bg-\[\#c9a227\] svg,
+[data-tema="oscuro-azul"] .bg-amber-500 svg,
+[data-tema^="claro"] .bg-\[\#c9a227\] svg,
+[data-tema^="claro"] .bg-amber-500 svg {
+  stroke: #ffffff !important;
+}
+
+/* ==========================================================================
+   REGLAS ESPECÍFICAS PARA TEMAS CLAROS (PERGAMINO Y MODERNO)
+   ========================================================================== */
+
+/* Textos adaptados a tinta de alto contraste */
+[data-tema^="claro"] .text-slate-100,
+[data-tema^="claro"] .text-slate-200,
+[data-tema^="claro"] .text-slate-300,
+[data-tema^="claro"] .text-amber-100,
+[data-tema^="claro"] .text-amber-200 {
+  color: var(--color-texto) !important;
+}
+
+[data-tema^="claro"] .text-slate-400,
+[data-tema^="claro"] .text-slate-500,
+[data-tema^="claro"] .text-slate-600,
+[data-tema^="claro"] .text-amber-200\/60,
+[data-tema^="claro"] .text-amber-200\/80,
+[data-tema^="claro"] .text-amber-200\/90,
+[data-tema^="claro"] .text-amber-300\/80 {
+  color: var(--color-texto-muted) !important;
+}
+
+[data-tema^="claro"] input::placeholder,
+[data-tema^="claro"] textarea::placeholder {
+  color: var(--color-texto-muted) !important;
+  opacity: 0.8;
+}
+
+/* Bordes adaptados a tema claro */
+[data-tema^="claro"] .border-slate-800,
+[data-tema^="claro"] .border-slate-800\/80,
+[data-tema^="claro"] .border-slate-700,
+[data-tema^="claro"] .border-slate-700\/80,
+[data-tema^="claro"] .border-slate-600,
+[data-tema^="claro"] .border-amber-900\/60,
+[data-tema^="claro"] .border-amber-900\/50,
+[data-tema^="claro"] .border-amber-900\/40,
+[data-tema^="claro"] .border-amber-900\/30,
+[data-tema^="claro"] .border-amber-800\/60,
+[data-tema^="claro"] .border-amber-800\/50,
+[data-tema^="claro"] .border-amber-800\/40,
+[data-tema^="claro"] .border-amber-800\/30,
+[data-tema^="claro"] .border-amber-700\/60,
+[data-tema^="claro"] .border-amber-700\/50 {
+  border-color: var(--color-borde) !important;
+}
+
+/* ==========================================================================
+   INSIGNIAS, BADGES Y CUADROS TINTADOS EN TEMAS CLAROS
+   (Elimina los cuadros oscuros y los convierte en píldoras armónicas legibles)
+   ========================================================================== */
+
+/* Ámbar / Dorado / Amarillo */
+[data-tema^="claro"] .bg-amber-950\/15,
+[data-tema^="claro"] .bg-amber-950\/20,
+[data-tema^="claro"] .bg-amber-950\/30,
+[data-tema^="claro"] .bg-amber-950\/40,
+[data-tema^="claro"] .bg-amber-950\/50,
+[data-tema^="claro"] .bg-amber-950\/60,
+[data-tema^="claro"] .bg-amber-950\/70,
+[data-tema^="claro"] .bg-amber-900\/30,
+[data-tema^="claro"] .bg-amber-900\/40,
+[data-tema^="claro"] .bg-amber-900\/50,
+[data-tema^="claro"] .bg-yellow-950\/40 {
+  background-color: rgba(217, 119, 6, 0.12) !important;
+  border-color: rgba(217, 119, 6, 0.35) !important;
+  color: #854d0e !important;
+}
+
+/* Verde / Esmeralda / Lima / Cerceta */
+[data-tema^="claro"] .bg-emerald-950\/30,
+[data-tema^="claro"] .bg-emerald-950\/40,
+[data-tema^="claro"] .bg-emerald-950\/50,
+[data-tema^="claro"] .bg-emerald-950\/60,
+[data-tema^="claro"] .bg-green-950\/40,
+[data-tema^="claro"] .bg-teal-950\/50,
+[data-tema^="claro"] .bg-lime-950\/40 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #065f46 !important;
+}
+
+/* Rosa / Rojo */
+[data-tema^="claro"] .bg-rose-950\/20,
+[data-tema^="claro"] .bg-rose-950\/30,
+[data-tema^="claro"] .bg-rose-950\/40,
+[data-tema^="claro"] .bg-rose-950\/50,
+[data-tema^="claro"] .bg-rose-950\/60,
+[data-tema^="claro"] .bg-rose-900\/50,
+[data-tema^="claro"] .bg-rose-900\/60,
+[data-tema^="claro"] .bg-red-950\/40 {
+  background-color: rgba(225, 29, 72, 0.12) !important;
+  border-color: rgba(225, 29, 72, 0.35) !important;
+  color: #9f1239 !important;
+}
+
+/* Azul / Cielo / Cian / Índigo */
+[data-tema^="claro"] .bg-blue-950\/15,
+[data-tema^="claro"] .bg-blue-950\/40,
+[data-tema^="claro"] .bg-blue-950\/60,
+[data-tema^="claro"] .bg-sky-950\/50,
+[data-tema^="claro"] .bg-sky-950\/60,
+[data-tema^="claro"] .bg-cyan-950\/40,
+[data-tema^="claro"] .bg-cyan-950\/60,
+[data-tema^="claro"] .bg-indigo-950\/40 {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.35) !important;
+  color: #1e40af !important;
+}
+
+/* Púrpura / Morado */
+[data-tema^="claro"] .bg-purple-950\/40,
+[data-tema^="claro"] .bg-purple-950\/60 {
+  background-color: rgba(147, 51, 234, 0.12) !important;
+  border-color: rgba(147, 51, 234, 0.35) !important;
+  color: #6b21a8 !important;
+}
+
+/* Naranja */
+[data-tema^="claro"] .bg-orange-950\/40 {
+  background-color: rgba(234, 88, 12, 0.12) !important;
+  border-color: rgba(234, 88, 12, 0.35) !important;
+  color: #9a3412 !important;
+}
+
+/* Textos de badges con contraste reforzado en temas claros */
+[data-tema^="claro"] .text-emerald-300,
+[data-tema^="claro"] .text-emerald-400 {
+  color: #065f46 !important;
+}
+[data-tema^="claro"] .text-amber-300,
+[data-tema^="claro"] .text-amber-400 {
+  color: #854d0e !important;
+}
+[data-tema^="claro"] .text-rose-300,
+[data-tema^="claro"] .text-rose-400,
+[data-tema^="claro"] .text-red-400 {
+  color: #9f1239 !important;
+}
+[data-tema^="claro"] .text-sky-300,
+[data-tema^="claro"] .text-sky-400,
+[data-tema^="claro"] .text-blue-300,
+[data-tema^="claro"] .text-blue-400,
+[data-tema^="claro"] .text-indigo-300 {
+  color: #1e40af !important;
+}
+[data-tema^="claro"] .text-purple-300,
+[data-tema^="claro"] .text-purple-400 {
+  color: #6b21a8 !important;
+}
+[data-tema^="claro"] .text-teal-300,
+[data-tema^="claro"] .text-teal-400 {
+  color: #115e59 !important;
+}
+[data-tema^="claro"] .text-cyan-300,
+[data-tema^="claro"] .text-cyan-400 {
+  color: #0e7490 !important;
+}
+[data-tema^="claro"] .text-orange-400 {
+  color: #9a3412 !important;
+}
+
+/* Hovers en temas claros */
+[data-tema^="claro"] .hover\:bg-slate-800:hover,
+[data-tema^="claro"] .hover\:bg-slate-700:hover,
+[data-tema^="claro"] .hover\:bg-slate-900\/80:hover,
+[data-tema^="claro"] .hover\:bg-slate-900\/60:hover,
+[data-tema^="claro"] .hover\:bg-slate-800\/80:hover,
+[data-tema^="claro"] .hover\:bg-slate-800\/60:hover {
+  background-color: var(--color-superficie-hover) !important;
+  color: var(--color-texto) !important;
+}
+
+/* Suavizar sombras en temas claros */
+[data-tema^="claro"] .shadow-2xl,
+[data-tema^="claro"] .shadow-xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+}
+[data-tema^="claro"] .shadow-lg,
+[data-tema^="claro"] .shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Resaltados de íconos de acento por tema */
+[data-tema="oscuro-azul"] .text-\[\#c9a227\],
+[data-tema="oscuro-azul"] .border-\[\#c9a227\] {
+  color: var(--color-acento) !important;
+  border-color: var(--color-acento) !important;
+}
+
+[data-tema="claro-pergamino"] .text-\[\#c9a227\],
+[data-tema="claro-pergamino"] .border-\[\#c9a227\] {
+  color: var(--color-acento) !important;
+  border-color: var(--color-acento) !important;
+}
+
+[data-tema="claro-moderno"] .text-\[\#c9a227\],
+[data-tema="claro-moderno"] .border-\[\#c9a227\] {
+  color: var(--color-acento) !important;
+  border-color: var(--color-acento) !important;
+}
+
+/* ==========================================================================
+   REGLAS RESPONSIVE MÓVIL
+   ========================================================================== */
+
+/* Tamaño táctil mínimo de 44px en móviles para botones e inputs */
+@media (max-width: 640px) {
+  button:not(.chip-btn):not(.inline-icon-btn),
+  input:not([type="checkbox"]):not([type="radio"]),
+  select {
+    min-height: 44px;
+  }
+}

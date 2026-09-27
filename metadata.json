@@ -1,0 +1,6 @@
+{
+  "name": "Bitácora de Campaña",
+  "description": "Libreta digital offline-first para campañas de rol y D&D. Registra campañas, sesiones, atlas de lugares, fichas de NPCs, misiones, objetos y cuaderno de campo de monstruos con almacenamiento local.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
