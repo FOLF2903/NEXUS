@@ -7,8 +7,8 @@ import { SupabaseCredentials, StorageDataSource } from '../types/supabase';
 // Aquí se configuran los códigos de conexión de tu nueva cuenta de Supabase.
 // Los usuarios finales no necesitan configurar nada en la interfaz.
 export const SUPABASE_CONFIG: SupabaseCredentials = {
-  url: 'https://witbwpeohxuzfyngszzr.supabase.co',
-  anonKey: 'sb_publishable_MPZUsEoDvOh-3hMS88dvDA_HAyupD7Q',
+  url: 'https://uerhovlbmfiukhgtmgcl.supabase.co',
+  anonKey: 'sb_publishable_UMNs4bDepmzvOezq6BBQrg_EYM6YXuK',
 };
 
 const STORAGE_KEY_SUPABASE_CONFIG = 'bitacora_supabase_credentials';
@@ -21,20 +21,26 @@ let currentConfigString = '';
  * Obtiene las credenciales actuales de Supabase (desde constantes de código o env)
  */
 export function getSupabaseCredentials(): SupabaseCredentials {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_SUPABASE_CONFIG);
+    if (stored) {
+      const parsed = JSON.parse(stored) as SupabaseCredentials;
+      if (parsed.url && parsed.url !== SUPABASE_CONFIG.url) {
+        // Limpiar credenciales de proyecto anterior para evitar desincronización
+        localStorage.removeItem(STORAGE_KEY_SUPABASE_CONFIG);
+      } else if (parsed.url && parsed.anonKey) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignorar
+  }
+
   const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
   const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
   if (envUrl && envKey && !envUrl.includes('tu-proyecto')) {
     return { url: envUrl, anonKey: envKey };
-  }
-
-  if (
-    SUPABASE_CONFIG.url &&
-    SUPABASE_CONFIG.anonKey &&
-    !SUPABASE_CONFIG.url.includes('TU_NUEVO_PROYECTO') &&
-    !SUPABASE_CONFIG.url.includes('tu-proyecto')
-  ) {
-    return { url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey };
   }
 
   return { url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey };
