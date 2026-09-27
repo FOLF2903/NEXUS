@@ -40,9 +40,8 @@ interface NavbarProps {
   userProfile?: UserProfile | null;
   storageMode?: StorageDataSource;
   onToggleStorageMode?: (mode: StorageDataSource) => void;
-  onOpenAuth?: (tab?: 'login' | 'register' | 'config') => void;
+  onOpenAuth?: () => void;
   onOpenJoinModal?: () => void;
-  onOpenConfigSupabase?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -70,7 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleStorageMode,
   onOpenAuth,
   onOpenJoinModal,
-  onOpenConfigSupabase,
 }) => {
   return (
     <header className={`sticky top-0 z-40 bg-[#0b0f17]/95 backdrop-blur-md border-b transition-colors ${
@@ -193,7 +191,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               onToggleStorageMode={onToggleStorageMode}
               onOpenAuth={onOpenAuth}
               onOpenJoinModal={onOpenJoinModal}
-              onOpenConfigSupabase={onOpenConfigSupabase}
             />
           )}
 

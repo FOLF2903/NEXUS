@@ -31,9 +31,8 @@ interface ConfiguracionMenuProps {
   currentUser?: SupabaseAuthUser | null;
   storageMode?: StorageDataSource;
   onToggleStorageMode?: (mode: StorageDataSource) => void;
-  onOpenAuth?: (tab?: 'login' | 'register' | 'config') => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenJoinModal?: () => void;
-  onOpenConfigSupabase?: () => void;
 }
 
 export const ConfiguracionMenu: React.FC<ConfiguracionMenuProps> = ({
@@ -48,7 +47,6 @@ export const ConfiguracionMenu: React.FC<ConfiguracionMenuProps> = ({
   onToggleStorageMode,
   onOpenAuth,
   onOpenJoinModal,
-  onOpenConfigSupabase,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -420,26 +418,6 @@ export const ConfiguracionMenu: React.FC<ConfiguracionMenuProps> = ({
                     <span className="text-[10px] text-slate-400">Pegar token</span>
                   </button>
                 )}
-
-                {/* Botón Cambiar / Configurar Códigos Supabase */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onOpenConfigSupabase) {
-                      onOpenConfigSupabase();
-                    } else if (onOpenAuth) {
-                      onOpenAuth('config');
-                    }
-                    setIsOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-semibold text-amber-200 hover:text-amber-100 transition-colors min-h-[44px]"
-                >
-                  <div className="flex items-center gap-2">
-                    <Key className="w-4 h-4 text-[#c9a227] shrink-0" />
-                    <span>Cambiar Códigos Supabase</span>
-                  </div>
-                  <span className="text-[10px] text-amber-300/80">URL y API Key</span>
-                </button>
               </div>
             </div>
           </div>

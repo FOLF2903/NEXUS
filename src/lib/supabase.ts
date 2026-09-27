@@ -1,6 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseCredentials, StorageDataSource } from '../types/supabase';
 
+// ==============================================================================
+// CONFIGURACIÓN CENTRAL DE SUPABASE (MODIFICAR AQUÍ)
+// ==============================================================================
+// Aquí se configuran los códigos de conexión de tu nueva cuenta de Supabase.
+// Los usuarios finales no necesitan configurar nada en la interfaz.
+export const SUPABASE_CONFIG: SupabaseCredentials = {
+  url: 'https://witbwpeohxuzfyngszzr.supabase.co',
+  anonKey: 'sb_publishable_MPZUsEoDvOh-3hMS88dvDA_HAyupD7Q',
+};
+
 const STORAGE_KEY_SUPABASE_CONFIG = 'bitacora_supabase_credentials';
 const STORAGE_KEY_DATA_SOURCE = 'bitacora_data_source';
 
@@ -8,21 +18,9 @@ let supabaseInstance: SupabaseClient | null = null;
 let currentConfigString = '';
 
 /**
- * Obtiene las credenciales actuales de Supabase (desde env o localStorage)
+ * Obtiene las credenciales actuales de Supabase (desde constantes de código o env)
  */
 export function getSupabaseCredentials(): SupabaseCredentials {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_SUPABASE_CONFIG);
-    if (stored) {
-      const parsed = JSON.parse(stored) as SupabaseCredentials;
-      if (parsed.url && parsed.anonKey) {
-        return parsed;
-      }
-    }
-  } catch {
-    // ignorar error de parseo
-  }
-
   const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
   const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
@@ -30,7 +28,16 @@ export function getSupabaseCredentials(): SupabaseCredentials {
     return { url: envUrl, anonKey: envKey };
   }
 
-  return { url: '', anonKey: '' };
+  if (
+    SUPABASE_CONFIG.url &&
+    SUPABASE_CONFIG.anonKey &&
+    !SUPABASE_CONFIG.url.includes('TU_NUEVO_PROYECTO') &&
+    !SUPABASE_CONFIG.url.includes('tu-proyecto')
+  ) {
+    return { url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey };
+  }
+
+  return { url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey };
 }
 
 /**
