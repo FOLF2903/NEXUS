@@ -10,6 +10,8 @@ import {
   Shield,
   Check,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   supabaseSignIn,
@@ -44,6 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Formulario Auth
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,9 +69,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setErrorMessage(null);
     setSuccessMessage(null);
+    setShowPassword(false);
   }, [isOpen, initialTab]);
 
   const configured = isSupabaseConfigured();
+
+  const translateAuthError = (err: string): string => {
+    const lower = err.toLowerCase();
+    if (lower.includes('invalid login credentials')) {
+      return 'Correo o contraseña incorrectos. Verifica la contraseña con el botón del ojo o crea una cuenta en la pestaña "Crear Cuenta".';
+    }
+    if (lower.includes('email not confirmed')) {
+      return 'El correo no ha sido confirmado aún. Ve a tu bandeja de entrada o desactiva "Confirm email" en tu panel de Supabase (Authentication -> Providers -> Email).';
+    }
+    if (lower.includes('user already registered') || lower.includes('already exists')) {
+      return 'Ya existe una cuenta registrada con este correo electrónico. Por favor entra en "Iniciar Sesión".';
+    }
+    if (lower.includes('password should be at least')) {
+      return 'La contraseña debe tener al menos 6 caracteres.';
+    }
+    if (lower.includes('invalid email')) {
+      return 'Por favor introduce un formato de correo electrónico válido.';
+    }
+    return err;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (error) {
-      setErrorMessage(error);
+      setErrorMessage(translateAuthError(error));
     } else if (user) {
       setCurrentUser(user);
       const prof = await fetchUserProfile(user.id);
@@ -111,7 +135,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
 
     if (error) {
-      setErrorMessage(error);
+      setErrorMessage(translateAuthError(error));
     } else if (user) {
       setCurrentUser(user);
       const prof = await fetchUserProfile(user.id);
@@ -286,13 +310,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-hidden focus:border-amber-500"
+                        className="w-full pl-9 pr-10 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-hidden focus:border-amber-500"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-amber-300 transition-colors focus:outline-hidden"
+                        title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
 
@@ -351,14 +388,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         required
                         minLength={6}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Mínimo 6 caracteres"
-                        className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-hidden focus:border-amber-500"
+                        className="w-full pl-9 pr-10 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-hidden focus:border-amber-500"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-amber-300 transition-colors focus:outline-hidden"
+                        title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
 
