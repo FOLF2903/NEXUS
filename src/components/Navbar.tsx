@@ -40,8 +40,9 @@ interface NavbarProps {
   userProfile?: UserProfile | null;
   storageMode?: StorageDataSource;
   onToggleStorageMode?: (mode: StorageDataSource) => void;
-  onOpenAuth?: () => void;
+  onOpenAuth?: (tab?: 'login' | 'register' | 'config') => void;
   onOpenJoinModal?: () => void;
+  onOpenConfigSupabase?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -69,6 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleStorageMode,
   onOpenAuth,
   onOpenJoinModal,
+  onOpenConfigSupabase,
 }) => {
   return (
     <header className={`sticky top-0 z-40 bg-[#0b0f17]/95 backdrop-blur-md border-b transition-colors ${
@@ -140,7 +142,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="navbar-user-btn"
                   type="button"
-                  onClick={onOpenAuth}
+                  onClick={() => onOpenAuth && onOpenAuth()}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-600/40 hover:bg-emerald-900/40 text-emerald-200 text-xs font-semibold transition-colors min-h-[44px]"
                   title={`Conectado como ${userProfile?.display_name || currentUser.email}`}
                 >
@@ -154,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="navbar-login-btn"
                   type="button"
-                  onClick={onOpenAuth}
+                  onClick={() => onOpenAuth && onOpenAuth()}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-950/40 border border-sky-600/40 hover:bg-sky-900/40 text-sky-200 text-xs font-semibold transition-colors min-h-[44px]"
                 >
                   <Cloud className="w-3.5 h-3.5 text-sky-400" />
@@ -191,6 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onToggleStorageMode={onToggleStorageMode}
               onOpenAuth={onOpenAuth}
               onOpenJoinModal={onOpenJoinModal}
+              onOpenConfigSupabase={onOpenConfigSupabase}
             />
           )}
 

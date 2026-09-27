@@ -11,13 +11,6 @@ let currentConfigString = '';
  * Obtiene las credenciales actuales de Supabase (desde env o localStorage)
  */
 export function getSupabaseCredentials(): SupabaseCredentials {
-  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-  const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
-
-  if (envUrl && envKey && !envUrl.includes('tu-proyecto')) {
-    return { url: envUrl, anonKey: envKey };
-  }
-
   try {
     const stored = localStorage.getItem(STORAGE_KEY_SUPABASE_CONFIG);
     if (stored) {
@@ -28,6 +21,13 @@ export function getSupabaseCredentials(): SupabaseCredentials {
     }
   } catch {
     // ignorar error de parseo
+  }
+
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+  const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+  if (envUrl && envKey && !envUrl.includes('tu-proyecto')) {
+    return { url: envUrl, anonKey: envKey };
   }
 
   return { url: '', anonKey: '' };
