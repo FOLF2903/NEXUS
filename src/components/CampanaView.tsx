@@ -76,6 +76,22 @@ import { exportCampanaCompleta } from '../utils/exportImport';
 import { MapaMentalView } from './MapaMentalView';
 import { MiembrosTab } from './MiembrosTab';
 
+type NavigationSection = 'cronicas' | 'personajes' | 'mundo' | 'codice' | 'miembros';
+
+const TAB_TO_SECTION: Record<CampanaTab, NavigationSection> = {
+  sesiones: 'cronicas',
+  diario: 'cronicas',
+  resumen: 'cronicas',
+  grupo: 'personajes',
+  npcs: 'personajes',
+  lugares: 'mundo',
+  misiones: 'mundo',
+  mapa: 'mundo',
+  objetos: 'codice',
+  bestiario: 'codice',
+  miembros: 'miembros',
+};
+
 interface CampanaViewProps {
   campana: Campana;
   sesiones: Sesion[];
@@ -589,8 +605,84 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
   const isPlayer = isCloud && currentUserRole === 'player';
   const canManageCampaign = isHost || isDm;
 
+  const currentSection: NavigationSection = TAB_TO_SECTION[activeTab] || 'cronicas';
+
+  const sections = useMemo(() => {
+    const list: Array<{
+      id: NavigationSection;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      defaultTab: CampanaTab;
+      subtabs: Array<{
+        id: CampanaTab;
+        label: string;
+        icon: React.ComponentType<{ className?: string }>;
+        count?: number;
+      }>;
+    }> = [
+      {
+        id: 'cronicas',
+        label: 'Crónicas',
+        icon: BookOpen,
+        defaultTab: 'sesiones',
+        subtabs: [
+          { id: 'sesiones', label: 'Sesiones', icon: BookOpen, count: sesiones.length },
+          { id: 'diario', label: 'Diario', icon: Calendar },
+          { id: 'resumen', label: 'Resumen', icon: TrendingUp },
+        ],
+      },
+      {
+        id: 'personajes',
+        label: 'Personajes',
+        icon: Users,
+        defaultTab: 'grupo',
+        subtabs: [
+          { id: 'grupo', label: 'Grupo', icon: Shield, count: pjs.length },
+          { id: 'npcs', label: 'NPCs', icon: Users, count: npcs.length },
+        ],
+      },
+      {
+        id: 'mundo',
+        label: 'Mundo',
+        icon: Compass,
+        defaultTab: 'lugares',
+        subtabs: [
+          { id: 'lugares', label: 'Lugares', icon: Compass, count: lugares.length },
+          { id: 'misiones', label: 'Misiones', icon: Scroll, count: misiones.length },
+          { id: 'mapa', label: 'Mapa', icon: Network },
+        ],
+      },
+      {
+        id: 'codice',
+        label: 'Códice',
+        icon: Package,
+        defaultTab: 'objetos',
+        subtabs: [
+          { id: 'objetos', label: 'Objetos', icon: Package, count: objetos.length },
+          { id: 'bestiario', label: 'Bestiario', icon: Skull, count: monstruos.length },
+        ],
+      },
+    ];
+
+    if (canManageCampaign && isCloud) {
+      list.push({
+        id: 'miembros',
+        label: 'Miembros',
+        icon: Users,
+        defaultTab: 'miembros',
+        subtabs: [
+          { id: 'miembros', label: 'Miembros', icon: Users },
+        ],
+      });
+    }
+
+    return list;
+  }, [sesiones.length, pjs.length, npcs.length, lugares.length, misiones.length, objetos.length, monstruos.length, canManageCampaign, isCloud]);
+
+  const activeSectionConfig = sections.find((s) => s.id === currentSection) || sections[0];
+
   return (
-    <div id="campana-view-container" className="space-y-6 animate-in fade-in duration-200">
+    <div id="campana-view-container" className="space-y-6 animate-in fade-in duration-200 pb-20 md:pb-6">
       {/* Barra superior de navegación y acciones compacta */}
       <div className="flex items-center justify-between gap-2 pb-1">
         <button
@@ -744,245 +836,68 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
         </div>
       </div>
 
-      {/* Pestañas principales de la Campaña: Resumen, Diario, Sesiones, Grupo, NPCs, Lugares, Misiones, Objetos, Bestiario */}
-      <div className="flex border-b border-slate-800 gap-2 pt-2 overflow-x-auto no-scrollbar">
-        <button
-          id="tab-resumen"
-          type="button"
-          onClick={() => setActiveTab('resumen')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'resumen'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4 text-[#c9a227]" />
-          <span>Resumen</span>
-        </button>
+      {/* 1. SECCIONES PRINCIPALES (ESCRITORIO): Crónicas | Personajes | Mundo | Códice (| Miembros) */}
+      <div className="hidden md:flex items-center gap-1.5 p-1 rounded-2xl bg-[#0c121e] border border-amber-900/40">
+        {sections.map((sec) => {
+          const isSelected = sec.id === currentSection;
+          const Icon = sec.icon;
+          return (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => {
+                if (sec.id !== currentSection) {
+                  setActiveTab(sec.defaultTab);
+                }
+              }}
+              className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-serif text-sm font-bold transition-all min-h-[42px] ${
+                isSelected
+                  ? 'bg-[#c9a227] text-black shadow-md shadow-amber-950/40'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-black' : 'text-[#c9a227]'}`} />
+              <span>{sec.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        <button
-          id="tab-diario"
-          type="button"
-          onClick={() => setActiveTab('diario')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'diario'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Calendar className="w-4 h-4 text-[#c9a227]" />
-          <span>Diario</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'diario'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {sesiones.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-mapa"
-          type="button"
-          onClick={() => setActiveTab('mapa')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'mapa'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Network className="w-4 h-4 text-[#c9a227]" />
-          <span>Mapa</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'mapa'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {sesiones.length + npcs.length + lugares.length + misiones.length + objetos.length + monstruos.length + pjs.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-sesiones"
-          type="button"
-          onClick={() => setActiveTab('sesiones')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'sesiones'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <BookOpen className="w-4 h-4 text-[#c9a227]" />
-          <span>Sesiones</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'sesiones'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {sesiones.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-grupo"
-          type="button"
-          onClick={() => setActiveTab('grupo')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'grupo'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Shield className="w-4 h-4 text-[#c9a227]" />
-          <span>Grupo</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'grupo'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {pjs.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-npcs"
-          type="button"
-          onClick={() => setActiveTab('npcs')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'npcs'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Users className="w-4 h-4 text-[#c9a227]" />
-          <span>NPCs</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'npcs'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {npcs.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-lugares"
-          type="button"
-          onClick={() => setActiveTab('lugares')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'lugares'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Compass className="w-4 h-4 text-[#c9a227]" />
-          <span>Lugares</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'lugares'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {lugares.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-misiones"
-          type="button"
-          onClick={() => setActiveTab('misiones')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'misiones'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Scroll className="w-4 h-4 text-[#c9a227]" />
-          <span>Misiones</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'misiones'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {misiones.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-objetos"
-          type="button"
-          onClick={() => setActiveTab('objetos')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'objetos'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Package className="w-4 h-4 text-[#c9a227]" />
-          <span>Objetos</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'objetos'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {objetos.length}
-          </span>
-        </button>
-
-        <button
-          id="tab-bestiario"
-          type="button"
-          onClick={() => setActiveTab('bestiario')}
-          className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-            activeTab === 'bestiario'
-              ? 'border-[#c9a227] text-amber-200'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Skull className="w-4 h-4 text-[#c9a227]" />
-          <span>Bestiario</span>
-          <span
-            className={`text-xs font-sans px-2 py-0.5 rounded-full ${
-              activeTab === 'bestiario'
-                ? 'bg-[#c9a227]/20 text-amber-200 font-semibold'
-                : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {monstruos.length}
-          </span>
-        </button>
-
-        {/* Pestaña Miembros (Solo Host y DM en modo Multijugador) */}
-        {canManageCampaign && isCloud && (
-          <button
-            id="tab-miembros"
-            type="button"
-            onClick={() => setActiveTab('miembros')}
-            className={`inline-flex items-center gap-2 pb-3 px-4 font-serif text-sm font-bold transition-all border-b-2 -mb-px shrink-0 min-h-[44px] ${
-              activeTab === 'miembros'
-                ? 'border-[#c9a227] text-amber-200'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-4 h-4 text-[#c9a227]" />
-            <span>Miembros</span>
-          </button>
-        )}
+      {/* 2. SUBPESTAÑAS DE LA SECCIÓN ACTIVA (MÓVIL Y ESCRITORIO): 2 a 3 opciones directas sin scroll */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-800/80 w-full sm:w-auto">
+          {activeSectionConfig.subtabs.map((sub) => {
+            const isSubActive = activeTab === sub.id;
+            const SubIcon = sub.icon;
+            return (
+              <button
+                key={sub.id}
+                id={`tab-${sub.id}`}
+                type="button"
+                onClick={() => setActiveTab(sub.id)}
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all min-h-[38px] active:scale-98 ${
+                  isSubActive
+                    ? 'bg-[#c9a227] text-black shadow-xs font-bold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-black' : 'text-amber-400/80'}`} />
+                <span>{sub.label}</span>
+                {sub.count !== undefined && (
+                  <span
+                    className={`text-[11px] font-sans px-1.5 py-0.2 rounded-full ${
+                      isSubActive
+                        ? 'bg-black/20 text-black font-bold'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {sub.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* CONTENIDO DE LA PESTAÑA: MIEMBROS (Fase 16) */}
@@ -2533,6 +2448,44 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
           onClose={() => setIsImportEntityOpen(false)}
         />
       )}
+
+      {/* BARRA INFERIOR FIJA PARA CELULAR (Bottom Navigation Bar) */}
+      <nav
+        aria-label="Navegación de secciones de campaña"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0c1320]/95 backdrop-blur-md border-t border-amber-900/50 px-1 py-1 flex items-center justify-around shadow-2xl pb-[max(env(safe-area-inset-bottom),6px)]"
+      >
+        {sections.map((sec) => {
+          const isSelected = sec.id === currentSection;
+          const Icon = sec.icon;
+          return (
+            <button
+              key={`mobile-bottom-${sec.id}`}
+              type="button"
+              onClick={() => {
+                if (sec.id !== currentSection) {
+                  setActiveTab(sec.defaultTab);
+                }
+              }}
+              className={`flex-1 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all min-h-[48px] active:scale-95 ${
+                isSelected
+                  ? 'text-amber-200 font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <div
+                className={`p-1 rounded-lg transition-transform ${
+                  isSelected ? 'bg-amber-500/25 scale-105' : ''
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isSelected ? 'text-[#c9a227]' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] leading-tight tracking-tight mt-0.5 font-medium truncate max-w-[65px]">
+                {sec.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 };
