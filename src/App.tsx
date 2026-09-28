@@ -91,6 +91,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { AuthModal } from './components/AuthModal';
 import { JoinCampaignModal } from './components/JoinCampaignModal';
 import { InviteModal } from './components/InviteModal';
+import { PantallaInicio } from './components/PantallaInicio';
 import { User } from '@supabase/supabase-js';
 import { StorageDataSource, UserProfile, CloudCampaignWithRole, SupabaseRole } from './types/supabase';
 import { getStorageMode, setStorageMode, getSupabase } from './lib/supabase';
@@ -116,6 +117,7 @@ import {
   deleteCloudPj,
   subscribeToCampaignRealtime,
   fetchUserProfile,
+  uploadLocalCampaignToCloud,
 } from './services/supabaseService';
 import { Cloud, HardDrive, Crown, UserPlus, Key, LogIn, ExternalLink, ArrowRight } from 'lucide-react';
 
@@ -222,6 +224,15 @@ export default function App() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [urlInviteToken, setUrlInviteToken] = useState<string | null>(null);
+
+  // Control de pantalla de inicio: si es false y no hay usuario, se muestra la pantalla de inicio
+  const [hasEnteredGuestMode, setHasEnteredGuestMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('bitacora_guest_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const handleOpenAuth = (tab: 'login' | 'register' = 'login') => {
     setAuthModalTab(tab);
@@ -841,18 +852,27 @@ export default function App() {
           prev.map((item) => (item.campana.id === campana.id ? { ...item, campana } : item))
         );
       } else {
-        const { campana: created } = await createCloudCampaign(
+        const { campana: created, error } = await createCloudCampaign(
           campana.nombre,
           campana.sistema,
           campana.descripcion,
           campana.fecha_inicio
         );
         if (created) {
-          setCampanas([created, ...campanas]);
-          setCloudCampaignsWithRoles([
+          setCampanas((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
+          setCloudCampaignsWithRoles((prev) => [
             { campana: created, role: 'host', isHost: true, memberCount: 1 },
-            ...cloudCampaignsWithRoles,
+            ...prev.filter((item) => item.campana.id !== created.id),
           ]);
+          // Abrir la campaña creada
+          navigateTo({
+            view: 'campana',
+            campanaId: created.id,
+            campaignTab: 'diario',
+          });
+        } else if (error) {
+          console.error('Error al crear campaña en Supabase:', error);
+          alert(`No se pudo crear la campaña en la nube: ${error}`);
         }
       }
     } else {
@@ -864,6 +884,51 @@ export default function App() {
         updated = [campana, ...campanas];
       }
       handleUpdateCampanas(updated);
+    }
+  };
+
+  // Subir la campaña actualmente abierta de Modo Local a Modo Nube (Supabase)
+  const handleUploadActiveCampaignToCloud = async (): Promise<string | null> => {
+    if (!activeCampana) return null;
+    if (!currentUser) {
+      setIsInviteModalOpen(false);
+      handleOpenAuth('login');
+      return null;
+    }
+
+    try {
+      const { campana: newCampana, error } = await uploadLocalCampaignToCloud(
+        activeCampana,
+        {
+          sesiones: activeCampanaSesiones,
+          npcs: activeCampanaNpcs,
+          lugares: activeCampanaLugares,
+          misiones: activeCampanaMisiones,
+          objetos: activeCampanaObjetos,
+          monstruos: activeCampanaMonstruos,
+          pjs: activeCampanaPjs,
+        }
+      );
+
+      if (error || !newCampana) {
+        console.error('Error al subir campaña a la nube:', error);
+        return null;
+      }
+
+      // Cambiar a modo Nube en la app
+      setStorageMode('cloud');
+      setStorageModeState('cloud');
+
+      // Recargar campañas desde Supabase
+      await loadCloudCampaigns(currentUser.id);
+
+      // Redirigir a la nueva campaña en la nube
+      setSelectedCampanaId(newCampana.id);
+
+      return newCampana.id;
+    } catch (err) {
+      console.error('Error inesperado al subir campaña a la nube:', err);
+      return null;
     }
   };
 
@@ -1538,6 +1603,12 @@ export default function App() {
         currentTheme={tema}
         onSelectTheme={handleSelectTheme}
         onGoHome={() => {
+          if (!currentUser && !selectedCampanaId) {
+            try {
+              localStorage.removeItem('bitacora_guest_mode');
+            } catch {}
+            setHasEnteredGuestMode(false);
+          }
           navigateTo({
             view: 'campanas',
             campanaId: null,
@@ -1781,10 +1852,23 @@ export default function App() {
             onOpenInvite={() => setIsInviteModalOpen(true)}
           />
         ) : (
-          /* VISTA 5: PANTALLA PRINCIPAL (LISTA DE CAMPAÑAS) */
+          /* VISTA 5: PANTALLA PRINCIPAL (LISTA DE CAMPAÑAS O PANTALLA DE INICIO) */
           <div className="space-y-8 animate-in fade-in duration-150">
-            {/* Si estamos en modo Nube y no hay usuario autenticado: Mostrar pantalla de bienvenida / login */}
-            {storageMode === 'cloud' && !currentUser ? (
+            {/* Si no hay usuario y no ha elegido continuar como invitado: Pantalla de Inicio */}
+            {!currentUser && !hasEnteredGuestMode ? (
+              <PantallaInicio
+                onIniciarSesion={() => handleOpenAuth('login')}
+                onRegistrarse={() => handleOpenAuth('register')}
+                onContinuarInvitado={() => {
+                  try {
+                    localStorage.setItem('bitacora_guest_mode', 'true');
+                  } catch {}
+                  setHasEnteredGuestMode(true);
+                  handleToggleStorageMode('local');
+                }}
+                onUnirseConToken={() => setIsJoinModalOpen(true)}
+              />
+            ) : storageMode === 'cloud' && !currentUser ? (
               <div
                 id="cloud-auth-welcome-card"
                 className="my-10 p-8 sm:p-12 rounded-2xl bg-[#111827] border border-sky-900/40 text-center max-w-2xl mx-auto shadow-2xl space-y-6"
@@ -1832,7 +1916,7 @@ export default function App() {
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-medium border border-slate-800 transition-colors min-h-[44px]"
                   >
                     <HardDrive className="w-3.5 h-3.5" />
-                    <span>Modo Local (Demo)</span>
+                    <span>Modo Local (Invitado)</span>
                   </button>
                 </div>
               </div>
@@ -1888,23 +1972,39 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Banner de aviso para cambiar a modo Nube si está en modo Local */}
+                {/* Banner de aviso para cambiar a modo Nube si está en modo Local / Invitado */}
                 {storageMode === 'local' && (
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-950/20 border border-amber-900/40 text-xs text-amber-200/90">
                     <div className="flex items-center gap-2.5">
                       <HardDrive className="w-4 h-4 text-[#c9a227] shrink-0" />
                       <span>
-                        <strong>Modo Local (Demo):</strong> Los datos se almacenan exclusivamente en este navegador. Puedes activar el modo Multijugador para invitar amigos con roles y sincronizar en tiempo real.
+                        <strong>Modo Invitado (Local):</strong> Los datos se almacenan exclusivamente en este navegador. Puedes iniciar sesión o crear una cuenta para invitar amigos con roles y sincronizar en tiempo real.
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStorageMode('cloud')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shrink-0"
-                    >
-                      <Cloud className="w-3.5 h-3.5" />
-                      <span>Cambiar a Modo Nube</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!currentUser && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              localStorage.removeItem('bitacora_guest_mode');
+                            } catch {}
+                            setHasEnteredGuestMode(false);
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs transition-colors"
+                        >
+                          <span>Volver a Inicio</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAuth('login')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors"
+                      >
+                        <Cloud className="w-3.5 h-3.5" />
+                        <span>Iniciar Sesión / Nube</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -2523,6 +2623,12 @@ export default function App() {
         onAuthSuccess={(user) => {
           setCurrentUser(user);
           fetchUserProfile(user.id).then(setUserProfile);
+          setStorageMode('cloud');
+          setStorageModeState('cloud');
+          setHasEnteredGuestMode(true);
+          try {
+            localStorage.setItem('bitacora_guest_mode', 'true');
+          } catch {}
           loadCloudCampaigns(user.id);
         }}
         onSignOut={() => {
@@ -2530,6 +2636,11 @@ export default function App() {
           setUserProfile(null);
           setCloudCampaignsWithRoles([]);
           setCampanas([]);
+          setHasEnteredGuestMode(false);
+          try {
+            localStorage.removeItem('bitacora_guest_mode');
+          } catch {}
+          handleToggleStorageMode('local');
         }}
       />
 
@@ -2565,6 +2676,13 @@ export default function App() {
           campaignId={selectedCampanaId}
           campaignName={activeCampana?.nombre || 'Campaña'}
           onClose={() => setIsInviteModalOpen(false)}
+          onUploadCampaignToCloud={handleUploadActiveCampaignToCloud}
+          onRequestAuth={() => {
+            setIsInviteModalOpen(false);
+            handleOpenAuth('login');
+          }}
+          currentUser={currentUser}
+          storageMode={storageMode}
         />
       )}
     </div>

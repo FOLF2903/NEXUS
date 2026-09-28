@@ -8,12 +8,14 @@ import {
   Check,
   AlertCircle,
   MoreVertical,
+  CloudUpload,
 } from 'lucide-react';
 import {
   fetchCampaignMembers,
   updateMemberRole,
   removeMember,
   getCurrentUser,
+  isUUID,
 } from '../services/supabaseService';
 import { CampaignMember, SupabaseRole } from '../types/supabase';
 import { ConfirmModal } from './ConfirmModal';
@@ -39,7 +41,14 @@ export const MiembrosTab: React.FC<MiembrosTabProps> = ({
   const [memberToKick, setMemberToKick] = useState<CampaignMember | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const isLocal = !isUUID(campaignId);
+
   const loadMembers = async () => {
+    if (isLocal) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const [data, user] = await Promise.all([
       fetchCampaignMembers(campaignId),
@@ -124,6 +133,26 @@ export const MiembrosTab: React.FC<MiembrosTabProps> = ({
         {loading ? (
           <div className="col-span-full py-12 text-center text-slate-400 text-xs">
             Cargando miembros de la campaña...
+          </div>
+        ) : isLocal ? (
+          <div className="col-span-full p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3">
+            <CloudUpload className="w-8 h-8 text-amber-400 mx-auto" />
+            <div className="space-y-1 max-w-md mx-auto">
+              <h3 className="font-serif font-bold text-amber-100 text-sm">
+                Campaña en Modo Local ({campaignId})
+              </h3>
+              <p className="text-xs text-amber-300/80">
+                Esta campaña está guardada únicamente en tu navegador. Para invitar a otros aventureros, asignar roles y sincronizar en tiempo real, súbela a la Nube de Supabase.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenInvite}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs shadow-md transition-colors min-h-[40px]"
+            >
+              <CloudUpload className="w-4 h-4" />
+              <span>Subir a Supabase e Invitar Jugadores</span>
+            </button>
           </div>
         ) : members.length === 0 ? (
           <div className="col-span-full py-12 text-center text-slate-400 text-xs">

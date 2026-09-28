@@ -308,7 +308,8 @@ create policy "Los usuarios pueden actualizar su propio perfil"
 create policy "Miembros pueden ver sus campañas"
   on public.campaigns for select to authenticated
   using (
-    id in (select campaign_id from public.campaign_members where user_id = auth.uid())
+    host_id = auth.uid()
+    or id in (select campaign_id from public.campaign_members where user_id = auth.uid())
   );
 
 create policy "Usuarios autenticados pueden crear campañas"

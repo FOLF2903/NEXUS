@@ -40,7 +40,7 @@ interface NavbarProps {
   userProfile?: UserProfile | null;
   storageMode?: StorageDataSource;
   onToggleStorageMode?: (mode: StorageDataSource) => void;
-  onOpenAuth?: () => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenJoinModal?: () => void;
 }
 
@@ -133,48 +133,45 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Acciones principales de la cabecera */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto sm:ml-0">
-          {/* Botón de cuenta / estado en la nube */}
-          {storageMode === 'cloud' && (
-            <>
-              {currentUser ? (
-                <button
-                  id="navbar-user-btn"
-                  type="button"
-                  onClick={() => onOpenAuth && onOpenAuth()}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-600/40 hover:bg-emerald-900/40 text-emerald-200 text-xs font-semibold transition-colors min-h-[44px]"
-                  title={`Conectado como ${userProfile?.display_name || currentUser.email}`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="hidden md:inline max-w-[100px] truncate">
-                    {userProfile?.display_name || currentUser.email?.split('@')[0]}
-                  </span>
-                  <span className="md:hidden text-[11px]">Cuenta</span>
-                </button>
-              ) : (
-                <button
-                  id="navbar-login-btn"
-                  type="button"
-                  onClick={() => onOpenAuth && onOpenAuth()}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-950/40 border border-sky-600/40 hover:bg-sky-900/40 text-sky-200 text-xs font-semibold transition-colors min-h-[44px]"
-                >
-                  <Cloud className="w-3.5 h-3.5 text-sky-400" />
-                  <span className="hidden sm:inline">Iniciar Sesión</span>
-                  <span className="sm:hidden">Entrar</span>
-                </button>
-              )}
+          {/* Botón de cuenta / estado de usuario (siempre visible y claro) */}
+          {currentUser ? (
+            <button
+              id="navbar-user-btn"
+              type="button"
+              onClick={() => onOpenAuth && onOpenAuth('login')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-600/40 hover:bg-emerald-900/40 text-emerald-200 text-xs font-semibold transition-colors min-h-[44px]"
+              title={`Conectado como ${userProfile?.display_name || currentUser.email}`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="hidden md:inline max-w-[110px] truncate">
+                {userProfile?.display_name || currentUser.email?.split('@')[0]}
+              </span>
+              <span className="md:hidden text-[11px]">Cuenta</span>
+            </button>
+          ) : (
+            <button
+              id="navbar-login-btn"
+              type="button"
+              onClick={() => onOpenAuth && onOpenAuth('login')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold transition-colors min-h-[44px]"
+              title="Modo Invitado (Local). Pulsa para iniciar sesión o crear cuenta."
+            >
+              <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Iniciar Sesión</span>
+              <span className="sm:hidden text-[11px]">Entrar</span>
+            </button>
+          )}
 
-              {onOpenJoinModal && (
-                <button
-                  id="navbar-join-btn"
-                  type="button"
-                  onClick={onOpenJoinModal}
-                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 hover:text-amber-200 transition-colors min-h-[44px]"
-                  title="Unirse a una campaña con código de invitación"
-                >
-                  <span>Unirse</span>
-                </button>
-              )}
-            </>
+          {onOpenJoinModal && (
+            <button
+              id="navbar-join-btn"
+              type="button"
+              onClick={onOpenJoinModal}
+              className="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 hover:text-amber-200 transition-colors min-h-[44px]"
+              title="Unirse a una campaña con código de invitación"
+            >
+              <span>Unirse con token</span>
+            </button>
           )}
 
           {/* Menú de Configuración (Temas, Importar, Exportar, Modo DM/Jugador y Modo Nube) */}

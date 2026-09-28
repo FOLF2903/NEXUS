@@ -4,20 +4,31 @@ import {
   UserPlus,
   Copy,
   Check,
-  Clock,
   Shield,
   Users,
   AlertCircle,
   Share2,
+  CloudUpload,
+  Loader2,
+  Lock,
 } from 'lucide-react';
-import { createCampaignInvite, fetchCampaignInvites } from '../services/supabaseService';
+import {
+  createCampaignInvite,
+  fetchCampaignInvites,
+  isUUID,
+} from '../services/supabaseService';
 import { CampaignInvite } from '../types/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface InviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   campaignId: string;
   campaignName: string;
+  onUploadCampaignToCloud?: () => Promise<string | null>;
+  onRequestAuth?: () => void;
+  currentUser?: User | null;
+  storageMode?: 'local' | 'cloud';
 }
 
 export const InviteModal: React.FC<InviteModalProps> = ({
@@ -25,27 +36,99 @@ export const InviteModal: React.FC<InviteModalProps> = ({
   onClose,
   campaignId,
   campaignName,
+  onUploadCampaignToCloud,
+  onRequestAuth,
+  currentUser,
+  storageMode = 'local',
 }) => {
+  const [currentCampaignId, setCurrentCampaignId] = useState(campaignId);
   const [role, setRole] = useState<'player' | 'dm'>('player');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [invites, setInvites] = useState<CampaignInvite[]>([]);
   const [currentLink, setCurrentLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const isLocalCampaign = !isUUID(currentCampaignId) || storageMode === 'local';
 
   useEffect(() => {
-    if (!isOpen || !campaignId) return;
+    if (!isOpen) return;
+    setCurrentCampaignId(campaignId);
     setError(null);
+    setSuccessMsg(null);
     setCurrentLink(null);
     setCopied(false);
-    fetchCampaignInvites(campaignId).then(setInvites);
+
+    if (isUUID(campaignId)) {
+      fetchCampaignInvites(campaignId).then(setInvites);
+    } else {
+      setInvites([]);
+    }
   }, [isOpen, campaignId]);
 
+  const handleUploadAndInvite = async () => {
+    if (!currentUser) {
+      if (onRequestAuth) onRequestAuth();
+      return;
+    }
+
+    if (!onUploadCampaignToCloud) {
+      setError('Función de subida a la nube no disponible.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const newUuid = await onUploadCampaignToCloud();
+      if (!newUuid) {
+        setError('No se pudo subir la campaña a la nube. Comprueba tu conexión con Supabase.');
+        setUploading(false);
+        return;
+      }
+
+      setCurrentCampaignId(newUuid);
+      setSuccessMsg('¡Campaña subida con éxito a Supabase! Generando enlace...');
+
+      // Generar invitación con el nuevo UUID
+      const { invite, error: invError } = await createCampaignInvite(newUuid, role);
+      setUploading(false);
+
+      if (invError || !invite) {
+        setError(invError || 'Error al generar enlace tras subir la campaña.');
+        return;
+      }
+
+      const fullUrl = `${window.location.origin}/?token=${invite.token}`;
+      setCurrentLink(fullUrl);
+      setInvites((prev) => [invite, ...prev]);
+
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      } catch {
+        // Ignorar fallo de portapapeles
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error al subir la campaña.');
+      setUploading(false);
+    }
+  };
+
   const handleGenerateInvite = async () => {
+    if (isLocalCampaign) {
+      await handleUploadAndInvite();
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const { invite, error: invError } = await createCampaignInvite(campaignId, role);
+    const { invite, error: invError } = await createCampaignInvite(currentCampaignId, role);
     setLoading(false);
 
     if (invError || !invite) {
@@ -122,6 +205,62 @@ export const InviteModal: React.FC<InviteModalProps> = ({
           </div>
         )}
 
+        {successMsg && (
+          <div className="mt-4 p-3 rounded-xl bg-emerald-950/40 border border-emerald-900/60 text-emerald-300 text-xs flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Banner informativo si la campaña es local */}
+        {isLocalCampaign && (
+          <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <CloudUpload className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="font-semibold text-xs text-amber-100">
+                  Campaña en Modo Local ({currentCampaignId})
+                </h4>
+                <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                  Esta campaña está guardada únicamente en la memoria de este navegador. Para que otros aventureros puedan acceder mediante un enlace de invitación y sincronizar tiradas y notas en tiempo real, debe subirse a la <strong>Nube de Supabase</strong>.
+                </p>
+              </div>
+            </div>
+
+            {!currentUser ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRequestAuth) onRequestAuth();
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs transition-colors min-h-[40px]"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Inicia sesión o regístrate para subir a la Nube</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleUploadAndInvite}
+                disabled={uploading}
+                className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs shadow-md transition-colors min-h-[40px]"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Subiendo campaña y elementos a Supabase...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload className="w-4 h-4" />
+                    <span>Subir a Supabase y Generar Enlace de Invitación</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Generador de Invitación */}
         <div className="pt-4 space-y-4">
           <div>
@@ -166,11 +305,29 @@ export const InviteModal: React.FC<InviteModalProps> = ({
           <button
             type="button"
             onClick={handleGenerateInvite}
-            disabled={loading}
+            disabled={loading || uploading}
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-all shadow-md min-h-[44px]"
           >
-            <Share2 className="w-4 h-4" />
-            <span>{loading ? 'Generando token seguro...' : 'Generar y Copiar Enlace de Invitación'}</span>
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Subiendo campaña a la nube...</span>
+              </>
+            ) : loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generando token seguro...</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-4 h-4" />
+                <span>
+                  {isLocalCampaign
+                    ? 'Subir a la Nube y Generar Enlace'
+                    : 'Generar y Copiar Enlace de Invitación'}
+                </span>
+              </>
+            )}
           </button>
 
           {/* Enlace generado recientemente */}

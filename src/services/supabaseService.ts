@@ -178,41 +178,82 @@ export async function createCloudCampaign(
   const userId = userResp.user?.id;
   if (!userId) return { campana: null, error: 'No has iniciado sesión' };
 
-  const { data, error } = await supabase
+  const campaignId = generateUUID();
+  const nowIso = new Date().toISOString();
+  const dateStr = startDate || nowIso.split('T')[0];
+
+  // 1. Insertar la campaña directamente con el UUID asignado
+  const { error: insertError } = await supabase
     .from('campaigns')
     .insert({
-      name,
+      id: campaignId,
+      name: name.trim(),
       system: system || 'D&D 5e',
-      description: description || '',
+      description: description?.trim() || '',
       state: 'activa',
-      start_date: startDate || new Date().toISOString().split('T')[0],
+      start_date: dateStr,
       host_id: userId,
-    })
-    .select()
-    .single();
+    });
 
-  if (error || !data) {
-    return { campana: null, error: error?.message || 'Error al crear campaña' };
+  if (insertError) {
+    console.error('Error al insertar campaña en Supabase:', insertError);
+    return { campana: null, error: insertError.message || 'Error al crear campaña en la nube' };
+  }
+
+  // 2. Garantizar que el creador esté registrado como 'host' en campaign_members
+  try {
+    await supabase
+      .from('campaign_members')
+      .upsert({
+        campaign_id: campaignId,
+        user_id: userId,
+        role: 'host',
+      });
+  } catch (mErr) {
+    console.warn('Aviso: membresía host creada por trigger o ya existente:', mErr);
   }
 
   const campana: Campana = {
-    id: data.id,
-    nombre: data.name,
-    sistema: data.system,
-    descripcion: data.description,
-    estado: data.state as any,
-    fecha_inicio: data.start_date,
+    id: campaignId,
+    nombre: name.trim(),
+    sistema: system || 'D&D 5e',
+    descripcion: description?.trim() || '',
+    estado: 'activa',
+    fecha_inicio: dateStr,
     pj_ids: [],
     notas_dm: '',
-    creada_en: data.created_at,
+    creada_en: nowIso,
   };
 
   return { campana, error: null };
 }
 
+// ==============================================================================
+// UTILIDADES UUID
+// ==============================================================================
+
+export function isUUID(str?: string | null): boolean {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export async function updateCloudCampaign(
   campana: Campana
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isUUID(campana.id)) {
+    return { success: false, error: 'Esta campaña no está registrada en la nube de Supabase.' };
+  }
   const supabase = getSupabase();
   if (!supabase) return { success: false, error: 'Supabase no conectado' };
 
@@ -235,6 +276,9 @@ export async function updateCloudCampaign(
 export async function deleteCloudCampaign(
   campaignId: string
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isUUID(campaignId)) {
+    return { success: false, error: 'Identificador de campaña inválido.' };
+  }
   const supabase = getSupabase();
   if (!supabase) return { success: false, error: 'Supabase no conectado' };
 
@@ -243,7 +287,147 @@ export async function deleteCloudCampaign(
   return { success: true, error: null };
 }
 
+/**
+ * Sube una campaña completa local (como camp_001 o generada en local) a Supabase
+ * Genera un UUID real para la campaña y sus entidades relacionadas, manteniendo integridad
+ */
+export async function uploadLocalCampaignToCloud(
+  localCampana: Campana,
+  entities: {
+    sesiones: Sesion[];
+    npcs: NPC[];
+    lugares: Lugar[];
+    misiones: Mision[];
+    objetos: Objeto[];
+    monstruos: Monstruo[];
+    pjs: PJ[];
+  }
+): Promise<{ campana: Campana | null; error: string | null }> {
+  const supabase = getSupabase();
+  if (!supabase) return { campana: null, error: 'Supabase no está configurado.' };
+
+  const { data: userResp } = await supabase.auth.getUser();
+  const userId = userResp.user?.id;
+  if (!userId) return { campana: null, error: 'Debes iniciar sesión para subir una campaña a la nube.' };
+
+  // 1. Crear la campaña en Supabase (generará un UUID real)
+  const { campana: newCloudCampana, error: createErr } = await createCloudCampaign(
+    localCampana.nombre,
+    localCampana.sistema,
+    localCampana.descripcion,
+    localCampana.fecha_inicio
+  );
+
+  if (createErr || !newCloudCampana) {
+    return { campana: null, error: createErr || 'Error al crear la campaña en la nube.' };
+  }
+
+  const newCampaignId = newCloudCampana.id;
+
+  // 2. Mapear IDs de entidades locales a nuevos UUIDs para mantener integridad relacional
+  const idMap = new Map<string, string>();
+  const getMappedId = (oldId: string): string => {
+    if (isUUID(oldId)) return oldId;
+    if (!idMap.has(oldId)) {
+      idMap.set(oldId, generateUUID());
+    }
+    return idMap.get(oldId)!;
+  };
+
+  // Pre-mapear
+  entities.sesiones.forEach((s) => getMappedId(s.id));
+  entities.npcs.forEach((n) => getMappedId(n.id));
+  entities.lugares.forEach((l) => getMappedId(l.id));
+  entities.misiones.forEach((m) => getMappedId(m.id));
+  entities.objetos.forEach((o) => getMappedId(o.id));
+  entities.monstruos.forEach((m) => getMappedId(m.id));
+  entities.pjs.forEach((p) => getMappedId(p.id));
+
+  // 3. Subir entidades
+  try {
+    for (const ses of entities.sesiones) {
+      await syncCloudSession({
+        ...ses,
+        id: getMappedId(ses.id),
+        campana_id: newCampaignId,
+        pj_ids_presentes: (ses.pj_ids_presentes || []).map((id) => idMap.get(id) || id),
+        npc_ids: (ses.npc_ids || []).map((id) => idMap.get(id) || id),
+        lugar_ids: (ses.lugar_ids || []).map((id) => idMap.get(id) || id),
+        mision_ids: (ses.mision_ids || []).map((id) => idMap.get(id) || id),
+        objeto_ids: (ses.objeto_ids || []).map((id) => idMap.get(id) || id),
+        monstruo_ids: (ses.monstruo_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const npc of entities.npcs) {
+      await syncCloudNpc({
+        ...npc,
+        id: getMappedId(npc.id),
+        campana_id: newCampaignId,
+        sesion_ids: (npc.sesion_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const lug of entities.lugares) {
+      await syncCloudLugar({
+        ...lug,
+        id: getMappedId(lug.id),
+        campana_id: newCampaignId,
+        padre_id: lug.padre_id ? idMap.get(lug.padre_id) || lug.padre_id : null,
+        hijos: (lug.hijos || []).map((id) => idMap.get(id) || id),
+        sesion_ids: (lug.sesion_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const mis of entities.misiones) {
+      await syncCloudMision({
+        ...mis,
+        id: getMappedId(mis.id),
+        campana_id: newCampaignId,
+        origen_npc_id: mis.origen_npc_id ? idMap.get(mis.origen_npc_id) || mis.origen_npc_id : null,
+        origen_lugar_id: mis.origen_lugar_id ? idMap.get(mis.origen_lugar_id) || mis.origen_lugar_id : null,
+        sesion_activacion_id: mis.sesion_activacion_id ? idMap.get(mis.sesion_activacion_id) || mis.sesion_activacion_id : null,
+        sesion_completado_id: mis.sesion_completado_id ? idMap.get(mis.sesion_completado_id) || mis.sesion_completado_id : null,
+        sesion_ids: (mis.sesion_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const obj of entities.objetos) {
+      await syncCloudObjeto({
+        ...obj,
+        id: getMappedId(obj.id),
+        campana_id: newCampaignId,
+        quien_lo_lleva: obj.quien_lo_lleva ? idMap.get(obj.quien_lo_lleva) || obj.quien_lo_lleva : null,
+        sesion_obtencion_id: obj.sesion_obtencion_id ? idMap.get(obj.sesion_obtencion_id) || obj.sesion_obtencion_id : null,
+        sesion_ids: (obj.sesion_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const mon of entities.monstruos) {
+      await syncCloudMonstruo({
+        ...mon,
+        id: getMappedId(mon.id),
+        campana_id: newCampaignId,
+        sesion_ids: (mon.sesion_ids || []).map((id) => idMap.get(id) || id),
+      }, newCampaignId);
+    }
+
+    for (const pj of entities.pjs) {
+      await syncCloudPj({
+        ...pj,
+        id: getMappedId(pj.id),
+        campana_id: newCampaignId,
+      }, newCampaignId);
+    }
+  } catch (err: any) {
+    console.error('Error al sincronizar entidades al subir a la nube:', err);
+  }
+
+  return { campana: newCloudCampana, error: null };
+}
+
 export async function fetchCampaignMembers(campaignId: string): Promise<CampaignMember[]> {
+  if (!isUUID(campaignId)) return [];
   const supabase = getSupabase();
   if (!supabase) return [];
 
@@ -276,6 +460,7 @@ export async function updateMemberRole(
   userId: string,
   newRole: 'dm' | 'player'
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isUUID(campaignId)) return { success: false, error: 'Identificador no válido en la nube' };
   const supabase = getSupabase();
   if (!supabase) return { success: false, error: 'Supabase no conectado' };
 
@@ -293,6 +478,7 @@ export async function removeMember(
   campaignId: string,
   userId: string
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isUUID(campaignId)) return { success: false, error: 'Identificador no válido en la nube' };
   const supabase = getSupabase();
   if (!supabase) return { success: false, error: 'Supabase no conectado' };
 
@@ -314,6 +500,13 @@ export async function createCampaignInvite(
   campaignId: string,
   role: 'dm' | 'player' = 'player'
 ): Promise<{ invite: CampaignInvite | null; error: string | null }> {
+  if (!isUUID(campaignId)) {
+    return {
+      invite: null,
+      error: 'Esta campaña está guardada de forma local (en este navegador). Para invitar a otros jugadores y compartir la mesa en tiempo real, sube la campaña a la Nube de Supabase.',
+    };
+  }
+
   const supabase = getSupabase();
   if (!supabase) return { invite: null, error: 'Supabase no conectado' };
 
@@ -338,6 +531,7 @@ export async function createCampaignInvite(
 }
 
 export async function fetchCampaignInvites(campaignId: string): Promise<CampaignInvite[]> {
+  if (!isUUID(campaignId)) return [];
   const supabase = getSupabase();
   if (!supabase) return [];
 
@@ -421,6 +615,18 @@ export async function fetchCampaignEntities(campaignId: string): Promise<{
   monstruos: Monstruo[];
   pjs: PJ[];
 }> {
+  if (!isUUID(campaignId)) {
+    return {
+      sesiones: [],
+      npcs: [],
+      lugares: [],
+      misiones: [],
+      objetos: [],
+      monstruos: [],
+      pjs: [],
+    };
+  }
+
   const supabase = getSupabase();
   if (!supabase) {
     return {
@@ -812,6 +1018,7 @@ export function subscribeToCampaignRealtime(
   campaignId: string,
   onRemoteChange: () => void
 ): RealtimeChannel | null {
+  if (!isUUID(campaignId)) return null;
   const supabase = getSupabase();
   if (!supabase || !campaignId) return null;
 
