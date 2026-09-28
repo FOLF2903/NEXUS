@@ -265,8 +265,11 @@ create table if not exists public.pjs (
 );
 
 -- ==============================================================================
--- 7. FUNCIÓN HELPER DE SEGURIDAD PARA EVALUACIÓN DE ROLES
+-- 7. FUNCIONES HELPER DE SEGURIDAD (SECURITY DEFINER)
 -- ==============================================================================
+-- El uso de 'security definer' evita recursiones infinitas en las políticas RLS
+-- entre las tablas campaigns y campaign_members.
+
 create or replace function public.check_user_campaign_role(c_id uuid, required_roles text[])
 returns boolean language sql security definer set search_path = '' as $$
   select exists (
@@ -274,6 +277,24 @@ returns boolean language sql security definer set search_path = '' as $$
     where campaign_id = c_id
       and user_id = auth.uid()
       and role = any(required_roles)
+  );
+$$;
+
+create or replace function public.is_campaign_member(c_id uuid)
+returns boolean language sql security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.campaign_members
+    where campaign_id = c_id
+      and user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_campaign_host(c_id uuid)
+returns boolean language sql security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.campaigns
+    where id = c_id
+      and host_id = auth.uid()
   );
 $$;
 
@@ -295,54 +316,66 @@ alter table public.monstruos enable row level security;
 alter table public.pjs enable row level security;
 
 -- --- PROFILES ---
+drop policy if exists "Cualquiera autenticado puede ver perfiles" on public.profiles;
 create policy "Cualquiera autenticado puede ver perfiles"
   on public.profiles for select to authenticated
   using (true);
 
+drop policy if exists "Los usuarios pueden actualizar su propio perfil" on public.profiles;
 create policy "Los usuarios pueden actualizar su propio perfil"
   on public.profiles for update to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
 
 -- --- CAMPAIGNS ---
+drop policy if exists "Miembros pueden ver sus campañas" on public.campaigns;
 create policy "Miembros pueden ver sus campañas"
   on public.campaigns for select to authenticated
   using (
     host_id = auth.uid()
-    or id in (select campaign_id from public.campaign_members where user_id = auth.uid())
+    or public.is_campaign_member(id)
   );
 
+drop policy if exists "Usuarios autenticados pueden crear campañas" on public.campaigns;
 create policy "Usuarios autenticados pueden crear campañas"
   on public.campaigns for insert to authenticated
   with check (host_id = auth.uid());
 
+drop policy if exists "Host y DM pueden editar la campaña" on public.campaigns;
 create policy "Host y DM pueden editar la campaña"
   on public.campaigns for update to authenticated
   using (public.check_user_campaign_role(id, array['host', 'dm']))
   with check (public.check_user_campaign_role(id, array['host', 'dm']));
 
+drop policy if exists "Solo el Host puede eliminar la campaña" on public.campaigns;
 create policy "Solo el Host puede eliminar la campaña"
   on public.campaigns for delete to authenticated
   using (host_id = auth.uid());
 
 -- --- CAMPAIGN_MEMBERS ---
+drop policy if exists "Miembros pueden ver los integrantes de su campaña" on public.campaign_members;
 create policy "Miembros pueden ver los integrantes de su campaña"
   on public.campaign_members for select to authenticated
   using (
-    campaign_id in (select campaign_id from public.campaign_members where user_id = auth.uid())
+    user_id = auth.uid()
+    or public.is_campaign_host(campaign_id)
+    or public.is_campaign_member(campaign_id)
   );
 
+drop policy if exists "Host puede añadir miembros manualmente" on public.campaign_members;
 create policy "Host puede añadir miembros manualmente"
   on public.campaign_members for insert to authenticated
   with check (
     public.check_user_campaign_role(campaign_id, array['host']) or user_id = auth.uid()
   );
 
+drop policy if exists "Solo el Host puede cambiar roles de miembros" on public.campaign_members;
 create policy "Solo el Host puede cambiar roles de miembros"
   on public.campaign_members for update to authenticated
   using (public.check_user_campaign_role(campaign_id, array['host']))
   with check (public.check_user_campaign_role(campaign_id, array['host']));
 
+drop policy if exists "Host puede expulsar o el miembro puede salir" on public.campaign_members;
 create policy "Host puede expulsar o el miembro puede salir"
   on public.campaign_members for delete to authenticated
   using (

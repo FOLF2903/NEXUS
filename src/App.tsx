@@ -257,34 +257,6 @@ export default function App() {
     }
   }, []);
 
-  // Escuchar cambios de sesión de Supabase Auth
-  useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user || null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id).then(setUserProfile);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user || null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id).then(setUserProfile);
-      } else {
-        setUserProfile(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
   // Cargar campañas en la nube
   const loadCloudCampaigns = useCallback(async (userId?: string) => {
     const uid = userId || currentUser?.id;
@@ -297,13 +269,69 @@ export default function App() {
     try {
       const list = await fetchUserCampaigns(uid);
       setCloudCampaignsWithRoles(list);
-      setCampanas(list.map((c) => c.campana));
+      const cloudCamps = list.map((c) => c.campana);
+      setCampanas(cloudCamps);
+      // Sincronizar también con localStorage para que si el usuario cambia a Modo Local
+      // o recarga offline, sus campañas de la nube sigan accesibles
+      if (cloudCamps.length > 0) {
+        const localCamps = getCampanas();
+        const merged = [
+          ...cloudCamps,
+          ...localCamps.filter((lc) => !cloudCamps.some((cc) => cc.id === lc.id)),
+        ];
+        saveCampanas(merged);
+      }
     } catch (err) {
       console.error('Error al cargar campañas en la nube:', err);
     } finally {
       setIsLoadingCloud(false);
     }
   }, [currentUser]);
+
+  // Escuchar cambios de sesión de Supabase Auth
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user || null;
+      setCurrentUser(user);
+      if (user) {
+        fetchUserProfile(user.id).then(setUserProfile);
+        setHasEnteredGuestMode(true);
+        try {
+          localStorage.setItem('bitacora_guest_mode', 'true');
+        } catch {}
+        // Si hay una cuenta activa, el modo predeterminado debe ser Cloud para ver sus campañas
+        setStorageMode('cloud');
+        setStorageModeState('cloud');
+        loadCloudCampaigns(user.id);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user || null;
+      setCurrentUser(user);
+      if (user) {
+        fetchUserProfile(user.id).then(setUserProfile);
+        setHasEnteredGuestMode(true);
+        try {
+          localStorage.setItem('bitacora_guest_mode', 'true');
+        } catch {}
+        setStorageMode('cloud');
+        setStorageModeState('cloud');
+        loadCloudCampaigns(user.id);
+      } else {
+        setUserProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [loadCloudCampaigns]);
 
   // Cambiar entre modo Local y modo Nube
   const handleToggleStorageMode = (newMode: StorageDataSource) => {
@@ -851,6 +879,9 @@ export default function App() {
         setCloudCampaignsWithRoles((prev) =>
           prev.map((item) => (item.campana.id === campana.id ? { ...item, campana } : item))
         );
+        // Mantener sincronizado el almacenamiento local
+        const currentLocal = getCampanas();
+        saveCampanas(currentLocal.map((c) => (c.id === campana.id ? campana : c)));
       } else {
         const { campana: created, error } = await createCloudCampaign(
           campana.nombre,
@@ -864,6 +895,10 @@ export default function App() {
             { campana: created, role: 'host', isHost: true, memberCount: 1 },
             ...prev.filter((item) => item.campana.id !== created.id),
           ]);
+          // Guardar copia local en localStorage para que no desaparezca si el usuario cambia a Modo Local
+          const currentLocal = getCampanas();
+          saveCampanas([created, ...currentLocal.filter((c) => c.id !== created.id)]);
+
           // Abrir la campaña creada
           navigateTo({
             view: 'campana',
@@ -1974,36 +2009,59 @@ export default function App() {
 
                 {/* Banner de aviso para cambiar a modo Nube si está en modo Local / Invitado */}
                 {storageMode === 'local' && (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-950/20 border border-amber-900/40 text-xs text-amber-200/90">
+                  <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border text-xs ${
+                    currentUser
+                      ? 'bg-sky-950/30 border-sky-800/50 text-sky-200'
+                      : 'bg-amber-950/20 border-amber-900/40 text-amber-200/90'
+                  }`}>
                     <div className="flex items-center gap-2.5">
-                      <HardDrive className="w-4 h-4 text-[#c9a227] shrink-0" />
+                      <HardDrive className={`w-4 h-4 shrink-0 ${currentUser ? 'text-sky-400' : 'text-[#c9a227]'}`} />
                       <span>
-                        <strong>Modo Invitado (Local):</strong> Los datos se almacenan exclusivamente en este navegador. Puedes iniciar sesión o crear una cuenta para invitar amigos con roles y sincronizar en tiempo real.
+                        {currentUser ? (
+                          <>
+                            <strong>Viendo en Modo Local:</strong> Tu cuenta en la nube (<strong>{currentUser.email}</strong>) está activa. Tus campañas están sincronizadas y seguras en Supabase.
+                          </>
+                        ) : (
+                          <>
+                            <strong>Modo Invitado (Local):</strong> Los datos se almacenan exclusivamente en este navegador. Puedes iniciar sesión o crear una cuenta para invitar amigos con roles y sincronizar en tiempo real.
+                          </>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {!currentUser && (
+                      {currentUser ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            try {
-                              localStorage.removeItem('bitacora_guest_mode');
-                            } catch {}
-                            setHasEnteredGuestMode(false);
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs transition-colors"
+                          onClick={() => handleToggleStorageMode('cloud')}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shadow-sm"
                         >
-                          <span>Volver a Inicio</span>
+                          <Cloud className="w-3.5 h-3.5 text-black" />
+                          <span>Volver a Modo Nube</span>
                         </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                localStorage.removeItem('bitacora_guest_mode');
+                              } catch {}
+                              setHasEnteredGuestMode(false);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs transition-colors"
+                          >
+                            <span>Volver a Inicio</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAuth('login')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors"
+                          >
+                            <Cloud className="w-3.5 h-3.5" />
+                            <span>Iniciar Sesión / Nube</span>
+                          </button>
+                        </>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAuth('login')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors"
-                      >
-                        <Cloud className="w-3.5 h-3.5" />
-                        <span>Iniciar Sesión / Nube</span>
-                      </button>
                     </div>
                   </div>
                 )}

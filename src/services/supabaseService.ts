@@ -122,44 +122,95 @@ export async function fetchUserCampaigns(userIdParam?: string): Promise<CloudCam
   }
   if (!userId) return [];
 
-  // 1. Obtener membresías del usuario
-  const { data: memberships, error: mError } = await supabase
-    .from('campaign_members')
-    .select('campaign_id, role')
-    .eq('user_id', userId);
-
-  if (mError || !memberships || memberships.length === 0) return [];
-
-  const campaignIds = memberships.map((m) => m.campaign_id);
-
-  // 2. Obtener datos de las campañas
+  // 1. Obtener todas las campañas a las que el usuario tiene acceso (Host o Invitado)
+  let list: any[] = [];
   const { data: campaigns, error: cError } = await supabase
     .from('campaigns')
     .select('*')
-    .in('id', campaignIds)
     .order('created_at', { ascending: false });
 
-  if (cError || !campaigns) return [];
+  if (!cError && Array.isArray(campaigns) && campaigns.length > 0) {
+    list = campaigns;
+  } else {
+    if (cError) {
+      console.warn('Aviso al obtener campañas con RLS general:', cError);
+    }
+    // Fallback de máxima fiabilidad: consultar directamente donde el usuario es host
+    try {
+      const { data: hostCampaigns, error: hError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('host_id', userId)
+        .order('created_at', { ascending: false });
 
-  // 3. Mapear a formato Campana local
-  return campaigns.map((c) => {
-    const mem = memberships.find((m) => m.campaign_id === c.id);
-    const role: SupabaseRole = (mem?.role as SupabaseRole) || 'player';
+      if (!hError && Array.isArray(hostCampaigns)) {
+        list = hostCampaigns;
+      }
+    } catch (hErr) {
+      console.error('Error en fallback de campañas host:', hErr);
+    }
+  }
+
+  // 2. Intentar obtener roles de miembros y campañas compartidas adicionales
+  const roleMap = new Map<string, SupabaseRole>();
+  try {
+    const { data: memberships } = await supabase
+      .from('campaign_members')
+      .select('campaign_id, role')
+      .eq('user_id', userId);
+
+    if (memberships && Array.isArray(memberships)) {
+      memberships.forEach((m: any) => {
+        roleMap.set(m.campaign_id, m.role as SupabaseRole);
+      });
+
+      // Si hay campañas donde es invitado que no vinieron en la lista inicial, intentar recuperarlas
+      const existingIds = new Set(list.map((c: any) => c.id));
+      const missingIds = memberships
+        .map((m: any) => m.campaign_id)
+        .filter((cid: string) => !existingIds.has(cid));
+
+      if (missingIds.length > 0) {
+        try {
+          const { data: guestCampaigns } = await supabase
+            .from('campaigns')
+            .select('*')
+            .in('id', missingIds);
+
+          if (guestCampaigns && Array.isArray(guestCampaigns)) {
+            list = [...list, ...guestCampaigns];
+          }
+        } catch (gErr) {
+          console.warn('Aviso: no se pudieron cargar campañas como invitado:', gErr);
+        }
+      }
+    }
+  } catch (mErr) {
+    console.warn('Aviso: no se pudieron consultar roles secundarios:', mErr);
+  }
+
+  // 3. Mapear a formato Campana
+  return list.map((c: any) => {
+    const isHost = c.host_id === userId;
+    const memberRole = roleMap.get(c.id);
+    const role: SupabaseRole = isHost ? 'host' : (memberRole || 'player');
+
     const campana: Campana = {
       id: c.id,
       nombre: c.name,
       sistema: c.system || 'D&D 5e',
       descripcion: c.description || '',
       estado: (c.state as any) || 'activa',
-      fecha_inicio: c.start_date || new Date(c.created_at).toISOString().split('T')[0],
-      pj_ids: c.pj_ids || [],
+      fecha_inicio: c.start_date || (c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+      pj_ids: Array.isArray(c.pj_ids) ? c.pj_ids : [],
       notas_dm: c.notas_dm || '',
-      creada_en: c.creada_en || c.created_at,
+      creada_en: c.creada_en || c.created_at || new Date().toISOString(),
     };
+
     return {
       campana,
       role,
-      isHost: role === 'host',
+      isHost,
       memberCount: 1,
     };
   });

@@ -329,7 +329,8 @@ create policy "Solo el Host puede eliminar la campaña"
 create policy "Miembros pueden ver los integrantes de su campaña"
   on public.campaign_members for select to authenticated
   using (
-    campaign_id in (select campaign_id from public.campaign_members where user_id = auth.uid())
+    user_id = auth.uid()
+    or campaign_id in (select id from public.campaigns where host_id = auth.uid())
   );
 
 create policy "Host puede añadir miembros manualmente"
