@@ -116,20 +116,9 @@ export function getStorageMode(): StorageDataSource {
     if (mode === 'cloud' || mode === 'local') {
       return mode;
     }
-    // Si no se ha configurado explícitamente pero hay un token de sesión de Supabase, usar 'cloud'
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const val = localStorage.getItem(key);
-        if (val && val.includes('access_token')) {
-          return 'cloud';
-        }
-      }
-    }
   } catch {
     // fallback
   }
-  // Por defecto 'local' para usuarios sin cuenta iniciada
   return 'local';
 }
 

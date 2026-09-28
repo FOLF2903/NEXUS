@@ -216,6 +216,8 @@ export default function App() {
   // ============================================================================
   const [storageMode, setStorageModeState] = useState<StorageDataSource>(() => getStorageMode());
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserRef = useRef<User | null>(null);
+  currentUserRef.current = currentUser;
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [cloudCampaignsWithRoles, setCloudCampaignsWithRoles] = useState<CloudCampaignWithRole[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
@@ -257,9 +259,9 @@ export default function App() {
     }
   }, []);
 
-  // Cargar campañas en la nube
+  // Cargar campañas en la nube (función estable sin dependencias que causen re-renders infinitos)
   const loadCloudCampaigns = useCallback(async (userId?: string) => {
-    const uid = userId || currentUser?.id;
+    const uid = userId || currentUserRef.current?.id;
     if (!uid) {
       setCloudCampaignsWithRoles([]);
       setCampanas([]);
@@ -286,26 +288,27 @@ export default function App() {
     } finally {
       setIsLoadingCloud(false);
     }
-  }, [currentUser]);
+  }, []);
 
-  // Escuchar cambios de sesión de Supabase Auth
+  // Escuchar cambios de sesión de Supabase Auth (se monta una sola vez sin provocar bucles)
   useEffect(() => {
     const supabase = getSupabase();
     if (!supabase) return;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user || null;
-      setCurrentUser(user);
-      if (user) {
-        fetchUserProfile(user.id).then(setUserProfile);
-        setHasEnteredGuestMode(true);
-        try {
-          localStorage.setItem('bitacora_guest_mode', 'true');
-        } catch {}
-        // Si hay una cuenta activa, el modo predeterminado debe ser Cloud para ver sus campañas
-        setStorageMode('cloud');
-        setStorageModeState('cloud');
-        loadCloudCampaigns(user.id);
+      if (user?.id !== currentUserRef.current?.id) {
+        setCurrentUser(user);
+        currentUserRef.current = user;
+        if (user) {
+          fetchUserProfile(user.id).then(setUserProfile);
+          setHasEnteredGuestMode(true);
+          try {
+            localStorage.setItem('bitacora_guest_mode', 'true');
+          } catch {}
+          setStorageMode('cloud');
+          setStorageModeState('cloud');
+        }
       }
     });
 
@@ -313,25 +316,27 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user || null;
-      setCurrentUser(user);
-      if (user) {
-        fetchUserProfile(user.id).then(setUserProfile);
-        setHasEnteredGuestMode(true);
-        try {
-          localStorage.setItem('bitacora_guest_mode', 'true');
-        } catch {}
-        setStorageMode('cloud');
-        setStorageModeState('cloud');
-        loadCloudCampaigns(user.id);
-      } else {
-        setUserProfile(null);
+      if (user?.id !== currentUserRef.current?.id) {
+        setCurrentUser(user);
+        currentUserRef.current = user;
+        if (user) {
+          fetchUserProfile(user.id).then(setUserProfile);
+          setHasEnteredGuestMode(true);
+          try {
+            localStorage.setItem('bitacora_guest_mode', 'true');
+          } catch {}
+          setStorageMode('cloud');
+          setStorageModeState('cloud');
+        } else {
+          setUserProfile(null);
+        }
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadCloudCampaigns]);
+  }, []);
 
   // Cambiar entre modo Local y modo Nube
   const handleToggleStorageMode = (newMode: StorageDataSource) => {
@@ -349,7 +354,7 @@ export default function App() {
   // Cargar datos según modo de almacenamiento
   useEffect(() => {
     if (storageMode === 'cloud') {
-      if (currentUser) {
+      if (currentUser?.id) {
         loadCloudCampaigns(currentUser.id);
       } else {
         setCloudCampaignsWithRoles([]);
@@ -377,7 +382,7 @@ export default function App() {
       setPjs(storedPjs);
       setLoaded(true);
     }
-  }, [storageMode, currentUser, loadCloudCampaigns]);
+  }, [storageMode, currentUser?.id, loadCloudCampaigns]);
 
   // Cargar entidades y suscribirse a Realtime cuando se abre una campaña en la nube
   useEffect(() => {
