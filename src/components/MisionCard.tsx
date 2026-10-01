@@ -10,6 +10,8 @@ import {
   Clock,
   Sparkles,
   Shield,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { Mision, NPC, Lugar, EstadoMision, ModoApp } from '../types';
 
@@ -71,7 +73,10 @@ interface MisionCardProps {
   npcs?: NPC[];
   lugares?: Lugar[];
   modoApp?: ModoApp;
+  canManageCampaign?: boolean;
   onSelect: (mision: Mision) => void;
+  onEdit?: (mision: Mision) => void;
+  onDelete?: (mision: Mision) => void;
   onTagClick?: (tag: string) => void;
 }
 
@@ -80,7 +85,10 @@ export const MisionCard: React.FC<MisionCardProps> = ({
   npcs = [],
   lugares = [],
   modoApp = 'jugador',
+  canManageCampaign = false,
   onSelect,
+  onEdit,
+  onDelete,
   onTagClick,
 }) => {
   const estadoCfg = ESTADO_MISION_CONFIG[mision.estado] || ESTADO_MISION_CONFIG.activa;
@@ -104,45 +112,45 @@ export const MisionCard: React.FC<MisionCardProps> = ({
     <div
       id={`mision-card-${mision.id}`}
       onClick={() => onSelect(mision)}
-      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer"
+      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer active:scale-[0.99]"
     >
       <div>
-        {/* Cabecera: Título y Estado */}
-        <div className="flex items-start justify-between gap-3 mb-2.5">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <div className="p-2 rounded-lg bg-amber-950/40 text-[#c9a227] border border-amber-900/40 shrink-0 mt-0.5">
+        {/* Cabecera: Título, Estado y Acciones Rápidas */}
+        <div className="flex items-start justify-between gap-2.5 mb-2.5">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-amber-950/40 text-[#c9a227] border border-amber-900/40 shrink-0 mt-0.5">
               <Scroll className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-serif text-base md:text-lg font-bold text-slate-100 group-hover:text-amber-300 transition-colors line-clamp-1">
+              <h3 className="font-serif text-base sm:text-lg font-bold text-slate-100 group-hover:text-amber-300 transition-colors line-clamp-1">
                 {mision.titulo}
               </h3>
 
               {/* Origen NPC o Lugar */}
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-slate-400">
                 {origenNpc && (
                   <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/60 text-slate-300"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/60 text-slate-300 text-[11px]"
                     title={`Otorgada por: ${origenNpc.nombre}`}
                   >
                     <User className="w-3 h-3 text-amber-400" />
-                    <span className="truncate max-w-[130px]">{origenNpc.nombre}</span>
+                    <span className="truncate max-w-[120px]">{origenNpc.nombre}</span>
                   </span>
                 )}
                 {origenLugar && (
                   <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/60 text-slate-300"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700/60 text-slate-300 text-[11px]"
                     title={`Ubicación: ${origenLugar.nombre}`}
                   >
                     <MapPin className="w-3 h-3 text-amber-400" />
-                    <span className="truncate max-w-[130px]">{origenLugar.nombre}</span>
+                    <span className="truncate max-w-[120px]">{origenLugar.nombre}</span>
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Badge Estado y DM */}
+          {/* Badge Estado, DM y Acciones rápidas */}
           <div className="flex items-center gap-1.5 shrink-0">
             {modoApp === 'dm' && mision.notas_dm && (
               <span
@@ -154,11 +162,42 @@ export const MisionCard: React.FC<MisionCardProps> = ({
               </span>
             )}
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 border ${estadoCfg.bg} ${estadoCfg.text} ${estadoCfg.border}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-semibold shrink-0 border ${estadoCfg.bg} ${estadoCfg.text} ${estadoCfg.border}`}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${estadoCfg.dot}`} />
               <span>{estadoCfg.label}</span>
             </span>
+
+            {/* Acciones rápidas para el DM */}
+            {canManageCampaign && (onEdit || onDelete) && (
+              <div
+                className="flex items-center gap-0.5 ml-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(mision)}
+                    title="Editar misión"
+                    aria-label="Editar misión"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(mision)}
+                    title="Eliminar misión"
+                    aria-label="Eliminar misión"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -170,7 +209,7 @@ export const MisionCard: React.FC<MisionCardProps> = ({
         )}
 
         {/* Barra de progreso */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80">
+        <div className="mt-3.5 pt-2.5 border-t border-slate-800/80">
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className="text-slate-400 font-medium flex items-center gap-1.5">
               {mision.estado === 'completada' ? (
@@ -187,7 +226,7 @@ export const MisionCard: React.FC<MisionCardProps> = ({
             )}
           </div>
 
-          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${estadoCfg.progressBar}`}
               style={{ width: `${porcentaje}%` }}
@@ -197,7 +236,7 @@ export const MisionCard: React.FC<MisionCardProps> = ({
 
         {/* Recompensa preview si existe */}
         {mision.recompensa_conocida && (
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-amber-300/90 font-medium truncate">
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-amber-300/90 font-medium truncate">
             <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-slate-400">Recompensa:</span>
             <span className="truncate">{mision.recompensa_conocida}</span>
@@ -206,7 +245,7 @@ export const MisionCard: React.FC<MisionCardProps> = ({
       </div>
 
       {/* Pie de la tarjeta: Etiquetas temáticas y ver detalle */}
-      <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+      <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5 items-center min-w-0">
           {mision.etiquetas && mision.etiquetas.length > 0 ? (
             mision.etiquetas.slice(0, 3).map((tag) => (
@@ -217,7 +256,7 @@ export const MisionCard: React.FC<MisionCardProps> = ({
                   e.stopPropagation();
                   onTagClick?.(tag);
                 }}
-                className="text-[11px] px-2 py-0.5 rounded-md bg-amber-950/30 text-amber-300/90 hover:bg-amber-900/50 hover:text-amber-200 transition-colors border border-amber-900/40"
+                className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-950/30 text-amber-300/90 hover:bg-amber-900/50 hover:text-amber-200 transition-colors border border-amber-900/40"
               >
                 #{tag}
               </button>

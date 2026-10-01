@@ -15,6 +15,8 @@ import {
   Tag,
   ChevronRight,
   EyeOff,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { Objeto, TipoObjeto, ModoApp } from '../types';
 
@@ -102,14 +104,20 @@ export const TIPO_OBJETO_CONFIG: Record<TipoObjeto, TipoObjetoConfig> = {
 interface ObjetoCardProps {
   objeto: Objeto;
   modoApp?: ModoApp;
+  canManageCampaign?: boolean;
   onSelect: (objeto: Objeto) => void;
+  onEdit?: (objeto: Objeto) => void;
+  onDelete?: (objeto: Objeto) => void;
   onTagClick?: (tag: string) => void;
 }
 
 export const ObjetoCard: React.FC<ObjetoCardProps> = ({
   objeto,
   modoApp = 'jugador',
+  canManageCampaign = false,
   onSelect,
+  onEdit,
+  onDelete,
   onTagClick,
 }) => {
   const config = TIPO_OBJETO_CONFIG[objeto.tipo] || TIPO_OBJETO_CONFIG.otro;
@@ -121,14 +129,14 @@ export const ObjetoCard: React.FC<ObjetoCardProps> = ({
     <div
       id={`objeto-card-${objeto.id}`}
       onClick={() => onSelect(objeto)}
-      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer"
+      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer active:scale-[0.99]"
     >
-      <div className="space-y-3">
-        {/* Cabecera: Tipo e identificación de portador */}
+      <div className="space-y-2.5">
+        {/* Cabecera: Tipo, portador y acciones rápidas */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${config.colorBg} ${config.colorText} ${config.colorBorder}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-md text-xs font-semibold border ${config.colorBg} ${config.colorText} ${config.colorBorder}`}
             >
               <TypeIcon className="w-3.5 h-3.5" />
               <span>{config.label}</span>
@@ -145,21 +153,54 @@ export const ObjetoCard: React.FC<ObjetoCardProps> = ({
             )}
           </div>
 
-          {objeto.quien_lo_lleva ? (
-            <span
-              title={`En posesión de: ${objeto.quien_lo_lleva}`}
-              className="inline-flex items-center gap-1.5 text-xs text-amber-200/90 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full"
-            >
-              <User className="w-3 h-3 text-[#c9a227]" />
-              <span className="font-medium truncate max-w-[120px] sm:max-w-[150px]">
-                {objeto.quien_lo_lleva}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {objeto.quien_lo_lleva ? (
+              <span
+                title={`En posesión de: ${objeto.quien_lo_lleva}`}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-200/90 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full"
+              >
+                <User className="w-3 h-3 text-[#c9a227]" />
+                <span className="font-medium truncate max-w-[110px] sm:max-w-[140px]">
+                  {objeto.quien_lo_lleva}
+                </span>
               </span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-800/40 border border-slate-700/40 px-2.5 py-0.5 rounded-full">
-              Sin asignar
-            </span>
-          )}
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-800/40 border border-slate-700/40 px-2.5 py-0.5 rounded-full">
+                Sin asignar
+              </span>
+            )}
+
+            {/* Acciones rápidas para DM */}
+            {canManageCampaign && (onEdit || onDelete) && (
+              <div
+                className="flex items-center gap-0.5 ml-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(objeto)}
+                    title="Editar objeto"
+                    aria-label="Editar objeto"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(objeto)}
+                    title="Eliminar objeto"
+                    aria-label="Eliminar objeto"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Nombre del objeto */}

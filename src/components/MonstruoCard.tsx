@@ -16,6 +16,8 @@ import {
   EyeOff,
   Swords,
   ShieldAlert,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { Monstruo, TipoMonstruo, ModoApp } from '../types';
 
@@ -103,14 +105,20 @@ export const TIPO_MONSTRUO_CONFIG: Record<TipoMonstruo, TipoMonstruoConfig> = {
 interface MonstruoCardProps {
   monstruo: Monstruo;
   modoApp?: ModoApp;
+  canManageCampaign?: boolean;
   onSelect: (monstruo: Monstruo) => void;
+  onEdit?: (monstruo: Monstruo) => void;
+  onDelete?: (monstruo: Monstruo) => void;
   onTagClick?: (tag: string) => void;
 }
 
 export const MonstruoCard: React.FC<MonstruoCardProps> = ({
   monstruo,
   modoApp = 'jugador',
+  canManageCampaign = false,
   onSelect,
+  onEdit,
+  onDelete,
   onTagClick,
 }) => {
   const config = TIPO_MONSTRUO_CONFIG[monstruo.tipo] || TIPO_MONSTRUO_CONFIG.otro;
@@ -124,14 +132,14 @@ export const MonstruoCard: React.FC<MonstruoCardProps> = ({
     <div
       id={`monstruo-card-${monstruo.id}`}
       onClick={() => onSelect(monstruo)}
-      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer"
+      className="group relative rounded-xl bg-[#111827] border border-amber-900/30 hover:border-amber-500/50 p-4 sm:p-5 transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between cursor-pointer active:scale-[0.99]"
     >
-      <div className="space-y-3">
-        {/* Cabecera: Tipo y Contador de encuentros */}
+      <div className="space-y-2.5">
+        {/* Cabecera: Tipo, Contador de encuentros y acciones rápidas */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${config.colorBg} ${config.colorText} ${config.colorBorder}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-md text-xs font-semibold border ${config.colorBg} ${config.colorText} ${config.colorBorder}`}
             >
               <TypeIcon className="w-3.5 h-3.5" />
               <span>{config.label}</span>
@@ -148,15 +156,48 @@ export const MonstruoCard: React.FC<MonstruoCardProps> = ({
             )}
           </div>
 
-          <span
-            title={`Encontrado ${monstruo.veces_encontrado} ${monstruo.veces_encontrado === 1 ? 'vez' : 'veces'}`}
-            className="inline-flex items-center gap-1.5 text-xs text-amber-200/90 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full font-medium"
-          >
-            <Swords className="w-3 h-3 text-[#c9a227]" />
-            <span>
-              {monstruo.veces_encontrado} {monstruo.veces_encontrado === 1 ? 'encuentro' : 'encuentros'}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              title={`Encontrado ${monstruo.veces_encontrado} ${monstruo.veces_encontrado === 1 ? 'vez' : 'veces'}`}
+              className="inline-flex items-center gap-1.5 text-xs text-amber-200/90 bg-amber-950/40 border border-amber-800/40 px-2.5 py-0.5 rounded-full font-medium"
+            >
+              <Swords className="w-3 h-3 text-[#c9a227]" />
+              <span>
+                {monstruo.veces_encontrado} {monstruo.veces_encontrado === 1 ? 'encuentro' : 'encuentros'}
+              </span>
             </span>
-          </span>
+
+            {/* Acciones rápidas para DM */}
+            {canManageCampaign && (onEdit || onDelete) && (
+              <div
+                className="flex items-center gap-0.5 ml-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(monstruo)}
+                    title="Editar criatura"
+                    aria-label="Editar criatura"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(monstruo)}
+                    title="Eliminar criatura"
+                    aria-label="Eliminar criatura"
+                    className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Nombre y estado de anonimato */}

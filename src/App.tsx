@@ -1841,6 +1841,11 @@ export default function App() {
               setIsSesionModalOpen(true);
             }}
             onSelectSesion={handleSelectSesion}
+            onEditSesion={(s) => {
+              setSesionToEdit(s);
+              setIsSesionModalOpen(true);
+            }}
+            onDeleteSesion={(id) => handleDeleteSesion(id)}
             onNuevoPj={() => {
               setActiveCampaignTab('grupo');
               setPjToEdit(null);
@@ -1858,6 +1863,11 @@ export default function App() {
               setIsNpcModalOpen(true);
             }}
             onSelectNpc={handleSelectNpc}
+            onEditNpc={(npc) => {
+              setNpcToEdit(npc);
+              setIsNpcModalOpen(true);
+            }}
+            onDeleteNpc={(id) => handleDeleteNpc(id)}
             onNuevoLugar={() => {
               setActiveCampaignTab('lugares');
               setLugarToEdit(null);
@@ -1865,24 +1875,44 @@ export default function App() {
               setIsLugarModalOpen(true);
             }}
             onSelectLugar={handleSelectLugar}
+            onEditLugar={(lugar) => {
+              setLugarToEdit(lugar);
+              setIsLugarModalOpen(true);
+            }}
+            onDeleteLugar={(lugar) => setLugarToDelete(lugar)}
             onNuevaMision={() => {
               setActiveCampaignTab('misiones');
               setMisionToEdit(null);
               setIsMisionModalOpen(true);
             }}
             onSelectMision={handleSelectMision}
+            onEditMision={(mision) => {
+              setMisionToEdit(mision);
+              setIsMisionModalOpen(true);
+            }}
+            onDeleteMision={(mision) => handleDeleteMision(mision)}
             onNuevoObjeto={() => {
               setActiveCampaignTab('objetos');
               setObjetoToEdit(null);
               setIsObjetoModalOpen(true);
             }}
             onSelectObjeto={handleSelectObjeto}
+            onEditObjeto={(objeto) => {
+              setObjetoToEdit(objeto);
+              setIsObjetoModalOpen(true);
+            }}
+            onDeleteObjeto={(objeto) => handleDeleteObjeto(objeto)}
             onNuevoMonstruo={() => {
               setActiveCampaignTab('bestiario');
               setMonstruoToEdit(null);
               setIsMonstruoModalOpen(true);
             }}
             onSelectMonstruo={handleSelectMonstruo}
+            onEditMonstruo={(monstruo) => {
+              setMonstruoToEdit(monstruo);
+              setIsMonstruoModalOpen(true);
+            }}
+            onDeleteMonstruo={(monstruo) => handleDeleteMonstruo(monstruo)}
             onNavigateToEntity={handleNavigateToEntity}
             activeTab={activeCampaignTab}
             onTabChange={(tab) => setActiveCampaignTab(tab)}

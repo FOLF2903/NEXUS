@@ -17,6 +17,7 @@ interface PjCardProps {
   pj: PJ;
   objetos?: Objeto[];
   modoApp?: ModoApp;
+  canManageCampaign?: boolean;
   onSelect: (pj: PJ) => void;
   onEdit: (pj: PJ) => void;
   onDelete: (pj: PJ) => void;
@@ -26,6 +27,7 @@ export const PjCard: React.FC<PjCardProps> = ({
   pj,
   objetos = [],
   modoApp = 'jugador',
+  canManageCampaign = true,
   onSelect,
   onEdit,
   onDelete,
@@ -43,12 +45,12 @@ export const PjCard: React.FC<PjCardProps> = ({
     <div
       id={`pj-card-${pj.id}`}
       onClick={() => onSelect(pj)}
-      className="group relative flex flex-col justify-between p-5 rounded-2xl bg-[#111827]/90 border border-amber-900/30 hover:border-[#c9a227]/70 hover:shadow-xl hover:shadow-amber-950/20 transition-all cursor-pointer overflow-hidden backdrop-blur-xs"
+      className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-2xl bg-[#111827]/90 border border-amber-900/30 hover:border-[#c9a227]/70 hover:shadow-xl hover:shadow-amber-950/20 transition-all cursor-pointer overflow-hidden backdrop-blur-xs active:scale-[0.99]"
     >
       {/* Barra superior con estado y acciones */}
       <div>
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-start justify-between gap-2.5 mb-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1 min-w-0">
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${estadoCfg.bg} ${estadoCfg.text} ${estadoCfg.border}`}
             >
@@ -72,27 +74,31 @@ export const PjCard: React.FC<PjCardProps> = ({
             )}
           </div>
 
-          <div
-            className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => onEdit(pj)}
-              title="Editar ficha"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800/80 transition-colors"
+          {canManageCampaign && (
+            <div
+              className="flex items-center gap-0.5 opacity-90 sm:opacity-75 sm:group-hover:opacity-100 transition-opacity shrink-0 ml-1"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(pj)}
-              title="Eliminar personaje"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => onEdit(pj)}
+                title="Editar ficha"
+                aria-label="Editar ficha"
+                className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(pj)}
+                title="Eliminar personaje"
+                aria-label="Eliminar personaje"
+                className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Nombre, Raza y Clase */}

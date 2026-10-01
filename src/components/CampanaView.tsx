@@ -34,6 +34,8 @@ import {
   Network,
   Crown,
   UserPlus,
+  RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   Campana,
@@ -62,6 +64,7 @@ import { AccionesMenu } from './AccionesMenu';
 import { getTagsFrequencies } from '../lib/tags';
 import { ACTITUD_CONFIG } from './NpcModal';
 import { LugarCard } from './LugarCard';
+import { NpcCard } from './NpcCard';
 import { TIPO_LUGAR_CONFIG, ESTADO_LUGAR_CONFIG } from './LugarModal';
 import { MisionCard, ESTADO_MISION_CONFIG } from './MisionCard';
 import { ObjetoCard, TIPO_OBJETO_CONFIG } from './ObjetoCard';
@@ -113,16 +116,28 @@ interface CampanaViewProps {
   onImportEntity?: (type: SingleEntityType, entity: any, ignoredRefs: string[]) => void;
   onNuevaSesion: () => void;
   onSelectSesion: (sesion: Sesion) => void;
+  onEditSesion?: (sesion: Sesion) => void;
+  onDeleteSesion?: (sesionId: string) => void;
   onNuevoNpc: () => void;
   onSelectNpc: (npc: NPC) => void;
+  onEditNpc?: (npc: NPC) => void;
+  onDeleteNpc?: (npcId: string) => void;
   onNuevoLugar?: () => void;
   onSelectLugar?: (lugar: Lugar) => void;
+  onEditLugar?: (lugar: Lugar) => void;
+  onDeleteLugar?: (lugar: Lugar) => void;
   onNuevaMision?: () => void;
   onSelectMision?: (mision: Mision) => void;
+  onEditMision?: (mision: Mision) => void;
+  onDeleteMision?: (mision: Mision) => void;
   onNuevoObjeto?: () => void;
   onSelectObjeto?: (objeto: Objeto) => void;
+  onEditObjeto?: (objeto: Objeto) => void;
+  onDeleteObjeto?: (objeto: Objeto) => void;
   onNuevoMonstruo?: () => void;
   onSelectMonstruo?: (monstruo: Monstruo) => void;
+  onEditMonstruo?: (monstruo: Monstruo) => void;
+  onDeleteMonstruo?: (monstruo: Monstruo) => void;
   onNuevoPj?: () => void;
   onSelectPj?: (pj: PJ) => void;
   onEditPj?: (pj: PJ) => void;
@@ -184,16 +199,28 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
   onImportEntity,
   onNuevaSesion,
   onSelectSesion,
+  onEditSesion,
+  onDeleteSesion,
   onNuevoNpc,
   onSelectNpc,
+  onEditNpc,
+  onDeleteNpc,
   onNuevoLugar = () => {},
   onSelectLugar = () => {},
+  onEditLugar,
+  onDeleteLugar,
   onNuevaMision = () => {},
   onSelectMision = () => {},
+  onEditMision,
+  onDeleteMision,
   onNuevoObjeto = () => {},
   onSelectObjeto = () => {},
+  onEditObjeto,
+  onDeleteObjeto,
   onNuevoMonstruo = () => {},
   onSelectMonstruo = () => {},
+  onEditMonstruo,
+  onDeleteMonstruo,
   onNuevoPj = () => {},
   onSelectPj = () => {},
   onEditPj = () => {},
@@ -206,6 +233,14 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
   // Pestaña activa: Resumen, Diario, Sesiones, Grupo, NPCs, Lugares, Misiones, Objetos o Bestiario
   const [internalTab, setInternalTab] = useState<CampanaTab>(controlledActiveTab || initialTab);
   const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
+
+  // Estado para confirmación de eliminación rápida desde tarjetas
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'sesion' | 'npc' | 'mision' | 'objeto' | 'monstruo';
+    id: string;
+    name: string;
+    raw?: any;
+  } | null>(null);
 
   const setActiveTab = (tab: CampanaTab) => {
     setInternalTab(tab);
@@ -275,6 +310,12 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
   const [searchMonstruoTerm, setSearchMonstruoTerm] = useState('');
   const [tipoMonstruoFilter, setTipoMonstruoFilter] = useState<string>('todos');
   const [selectedMonstruoTagFilter, setSelectedMonstruoTagFilter] = useState<string | null>(null);
+
+  // Estado para desplegar u ocultar los paneles de filtros secundarios en cada pestaña
+  const [showFilters, setShowFilters] = useState<Record<string, boolean>>({});
+  const toggleFilters = (tabKey: string) => {
+    setShowFilters((prev) => ({ ...prev, [tabKey]: !prev[tabKey] }));
+  };
 
   // Notas del DM y Modal de confirmación
   const [showDmNotes, setShowDmNotes] = useState(false);
@@ -681,6 +722,39 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
   const activeSectionConfig = sections.find((s) => s.id === currentSection) || sections[0];
 
+  // Acción rápida del botón flotante (FAB) en celular según la pestaña activa
+  const fabAction = useMemo(() => {
+    if (!canManageCampaign) return null;
+    switch (activeTab) {
+      case 'sesiones':
+        return { label: 'Nueva Sesión', shortLabel: 'Sesión', onClick: onNuevaSesion };
+      case 'grupo':
+        return { label: 'Nuevo Personaje', shortLabel: 'PJ', onClick: onNuevoPj };
+      case 'npcs':
+        return { label: 'Nuevo NPC', shortLabel: 'NPC', onClick: onNuevoNpc };
+      case 'lugares':
+        return { label: 'Nuevo Lugar', shortLabel: 'Lugar', onClick: onNuevoLugar };
+      case 'misiones':
+        return { label: 'Nueva Misión', shortLabel: 'Misión', onClick: onNuevaMision };
+      case 'objetos':
+        return { label: 'Nuevo Objeto', shortLabel: 'Objeto', onClick: onNuevoObjeto };
+      case 'bestiario':
+        return { label: 'Registrar Monstruo', shortLabel: 'Criatura', onClick: onNuevoMonstruo };
+      default:
+        return null;
+    }
+  }, [
+    activeTab,
+    canManageCampaign,
+    onNuevaSesion,
+    onNuevoPj,
+    onNuevoNpc,
+    onNuevoLugar,
+    onNuevaMision,
+    onNuevoObjeto,
+    onNuevoMonstruo,
+  ]);
+
   return (
     <div id="campana-view-container" className="space-y-6 animate-in fade-in duration-200 pb-20 md:pb-6">
       {/* Barra superior de navegación y acciones compacta */}
@@ -965,114 +1039,144 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: SESIONES */}
       {activeTab === 'sesiones' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas de sesiones */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
                 <span>Diario de Sesiones</span>
                 <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {sesiones.length}
+                  {filteredSesiones.length !== sesiones.length
+                    ? `${filteredSesiones.length}/${sesiones.length}`
+                    : sesiones.length}
                 </span>
               </h2>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Búsqueda */}
-              <div className="relative flex-1 sm:flex-initial sm:w-60">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar en sesiones..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
-                />
-              </div>
-
-              {/* Alternar orden */}
-              <button
-                type="button"
-                onClick={() => setSortAscending(!sortAscending)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 hover:text-amber-200 transition-colors"
-                title={sortAscending ? 'Orden: 1 a N (ascendente)' : 'Orden: N a 1 (más reciente primero)'}
-              >
-                <ArrowUpDown className="w-3.5 h-3.5 text-[#c9a227]" />
-                <span>{sortAscending ? '1 → N' : 'N → 1'}</span>
-              </button>
-
-              {/* Botón + Nueva sesión (Solo DM o Host) */}
+              {/* Botón + Nueva sesión en escritorio */}
               {canManageCampaign && (
                 <button
                   id="nueva-sesion-btn"
                   type="button"
                   onClick={onNuevaSesion}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors"
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors shrink-0"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>+ Nueva sesión</span>
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Barra de filtrado por etiquetas temáticas de sesiones */}
-          {tagFrequencies.length > 0 && (
-            <div className="p-3.5 rounded-xl bg-[#111827] border border-slate-800 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5 mr-1">
-                <Tag className="w-3.5 h-3.5 text-[#c9a227]" />
-                <span>Filtrar por etiqueta:</span>
-              </span>
+            {/* Fila de controles: búsqueda + orden + botón filtros */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar sesiones..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
+              {/* Alternar orden */}
               <button
                 type="button"
-                onClick={() => setSelectedTagFilter(null)}
-                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                  selectedTagFilter === null
-                    ? 'bg-[#c9a227] text-black font-semibold'
-                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
+                onClick={() => setSortAscending(!sortAscending)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-300 hover:text-amber-200 transition-colors shrink-0 min-h-[38px]"
+                title={sortAscending ? 'Orden: 1 a N (ascendente)' : 'Orden: N a 1 (más reciente primero)'}
               >
-                Todas ({sesiones.length})
+                <ArrowUpDown className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span className="hidden sm:inline">{sortAscending ? '1 → N' : 'N → 1'}</span>
               </button>
 
-              {tagFrequencies.map(({ tag, count }) => {
-                const isSelected = selectedTagFilter === tag;
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSelectedTagFilter(isSelected ? null : tag)}
-                    className={`text-xs font-mono px-2.5 py-1 rounded-md border transition-all flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-amber-500/20 text-[#c9a227] border-[#c9a227]/70 ring-1 ring-[#c9a227]/40'
-                        : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
-                    }`}
-                  >
-                    <span>#{tag}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                        isSelected ? 'bg-[#c9a227]/30 text-amber-200' : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {selectedTagFilter && (
+              {/* Botón Filtros (colapsable) */}
+              {tagFrequencies.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSelectedTagFilter(null)}
-                  className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto transition-colors"
+                  onClick={() => toggleFilters('sesiones')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                    showFilters['sesiones'] || selectedTagFilter
+                      ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                      : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
+                  }`}
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Limpiar filtro (#{selectedTagFilter})</span>
+                  <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                  <span>Filtros</span>
+                  {selectedTagFilter && (
+                    <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                  )}
+                </button>
+              )}
+
+              {/* Limpiar filtros activos */}
+              {(selectedTagFilter || searchTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTagFilter(null);
+                    setSearchTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
                 </button>
               )}
             </div>
-          )}
+
+            {/* Panel colapsable de etiquetas para sesiones */}
+            {(showFilters['sesiones'] || selectedTagFilter) && tagFrequencies.length > 0 && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 flex flex-wrap items-center gap-1.5 animate-in fade-in duration-150">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
+                  <Tag className="w-3 h-3 text-[#c9a227]" />
+                  <span>Etiquetas:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTagFilter(null)}
+                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                    selectedTagFilter === null
+                      ? 'bg-[#c9a227] text-black font-semibold'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  Todas ({sesiones.length})
+                </button>
+                {tagFrequencies.map(({ tag, count }) => {
+                  const isSelected = selectedTagFilter === tag;
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setSelectedTagFilter(isSelected ? null : tag)}
+                      className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                          : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                      }`}
+                    >
+                      <span>#{tag}</span>
+                      <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Lista de sesiones */}
           {sesiones.length === 0 ? (
@@ -1126,26 +1230,66 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   key={sesion.id}
                   id={`sesion-card-${sesion.numero}`}
                   onClick={() => onSelectSesion(sesion)}
-                  className="group rounded-xl bg-[#111827] border border-slate-800/80 hover:border-amber-500/50 p-5 transition-all duration-200 cursor-pointer shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="group rounded-xl bg-[#111827] border border-slate-800/80 hover:border-amber-500/50 p-4 sm:p-5 transition-all duration-200 cursor-pointer shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col md:flex-row md:items-center justify-between gap-3.5 md:gap-4 active:scale-[0.99]"
                 >
                   <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-serif text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-950/60 text-[#c9a227] border border-amber-900/60">
-                        Sesión {sesion.numero}
-                      </span>
-                      {modoApp === 'dm' && sesion.notas_dm && (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-950/60 text-[#c9a227] border border-amber-800/60"
-                          title="Contiene notas privadas del DM"
-                        >
-                          <Shield className="w-3 h-3 text-[#c9a227]" />
-                          <span>DM</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-serif text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-950/60 text-[#c9a227] border border-amber-900/60 shrink-0">
+                          Sesión {sesion.numero}
                         </span>
+                        {modoApp === 'dm' && sesion.notas_dm && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-950/60 text-[#c9a227] border border-amber-800/60 shrink-0"
+                            title="Contiene notas privadas del DM"
+                          >
+                            <Shield className="w-3 h-3 text-[#c9a227]" />
+                            <span>DM</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* En móvil: Acciones rápidas en la cabecera */}
+                      {canManageCampaign && (onEditSesion || onDeleteSesion) && (
+                        <div
+                          className="flex md:hidden items-center gap-1 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {onEditSesion && (
+                            <button
+                              type="button"
+                              onClick={() => onEditSesion(sesion)}
+                              title="Editar sesión"
+                              aria-label="Editar sesión"
+                              className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {onDeleteSesion && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDeleteTarget({
+                                  type: 'sesion',
+                                  id: sesion.id,
+                                  name: `Sesión ${sesion.numero}: ${sesion.titulo}`,
+                                })
+                              }
+                              title="Eliminar sesión"
+                              aria-label="Eliminar sesión"
+                              className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       )}
-                      <h3 className="font-serif text-base md:text-lg font-bold text-slate-100 group-hover:text-amber-200 transition-colors truncate">
-                        {sesion.titulo}
-                      </h3>
                     </div>
+
+                    <h3 className="font-serif text-base sm:text-lg font-bold text-slate-100 group-hover:text-amber-200 transition-colors truncate">
+                      {sesion.titulo}
+                    </h3>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <span className="inline-flex items-center gap-1">
@@ -1200,8 +1344,46 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                     )}
                   </div>
 
-                  <div className="shrink-0 flex items-center justify-end md:justify-center">
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 group-hover:bg-[#c9a227]/20 border border-slate-800 group-hover:border-[#c9a227]/50 text-xs font-medium text-slate-300 group-hover:text-[#c9a227] transition-colors">
+                  {/* Acciones para escritorio y botón Ver sesión */}
+                  <div className="shrink-0 flex items-center justify-between md:justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/60">
+                    {/* En escritorio: Acciones de edición y borrado */}
+                    {canManageCampaign && (onEditSesion || onDeleteSesion) && (
+                      <div
+                        className="hidden md:flex items-center gap-1 mr-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {onEditSesion && (
+                          <button
+                            type="button"
+                            onClick={() => onEditSesion(sesion)}
+                            title="Editar sesión"
+                            aria-label="Editar sesión"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {onDeleteSesion && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteTarget({
+                                type: 'sesion',
+                                id: sesion.id,
+                                name: `Sesión ${sesion.numero}: ${sesion.titulo}`,
+                              })
+                            }
+                            title="Eliminar sesión"
+                            aria-label="Eliminar sesión"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 group-hover:bg-[#c9a227]/20 border border-slate-800 group-hover:border-[#c9a227]/50 text-xs font-medium text-slate-300 group-hover:text-[#c9a227] transition-colors ml-auto md:ml-0">
                       <span>Ver sesión</span>
                       <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </span>
@@ -1215,98 +1397,148 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: GRUPO (PJs) */}
       {activeTab === 'grupo' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas del Grupo */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
-                <span>Personajes del Grupo (PJs)</span>
-                <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {pjs.length}
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Fichas de los héroes y aventureros que forman parte de la crónica
-              </p>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
+                  <span>Personajes del Grupo (PJs)</span>
+                  <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+                    {filteredPjs.length !== pjs.length ? `${filteredPjs.length}/${pjs.length}` : pjs.length}
+                  </span>
+                </h2>
+              </div>
+
+              {/* Botón Nuevo PJ en escritorio */}
+              {canManageCampaign && (
+                <button
+                  id="nuevo-pj-tab-btn"
+                  type="button"
+                  onClick={onNuevoPj}
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black text-xs font-semibold shadow-md shadow-amber-950/20 transition-colors shrink-0"
+                >
+                  <Plus className="w-4 h-4 text-black stroke-[2.5]" />
+                  <span>+ Nuevo PJ</span>
+                </button>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Búsqueda */}
-              <div className="relative flex-1 sm:flex-initial sm:w-56">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchPjTerm}
                   onChange={(e) => setSearchPjTerm(e.target.value)}
-                  placeholder="Buscar nombre, clase, raza..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227]"
+                  placeholder="Buscar héroe, clase, raza..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227]"
                 />
+                {searchPjTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchPjTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
 
-              {/* Filtro por estado */}
-              <div className="flex items-center gap-1.5">
-                <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <select
-                  value={selectedEstadoPjFilter}
-                  onChange={(e) => setSelectedEstadoPjFilter(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-300 focus:outline-hidden focus:border-[#c9a227]"
-                >
-                  <option value="todos">Todos los estados</option>
-                  <option value="activo">Activo</option>
-                  <option value="retirado">Retirado</option>
-                  <option value="muerto">Muerto</option>
-                  <option value="desaparecido">Desaparecido</option>
-                </select>
-              </div>
-
-              {/* Botón Nuevo PJ */}
-              <button
-                id="nuevo-pj-tab-btn"
-                type="button"
-                onClick={onNuevoPj}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black text-xs font-semibold shadow-md shadow-amber-950/20 transition-colors"
-              >
-                <Plus className="w-4 h-4 text-black stroke-[2.5]" />
-                <span>+ Nuevo PJ</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Filtros de etiquetas si existen */}
-          {pjsTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800/60">
-              <span className="text-xs text-slate-500 font-medium mr-1 flex items-center gap-1">
-                <Tag className="w-3 h-3 text-slate-400" />
-                Etiquetas:
-              </span>
+              {/* Botón Filtros (colapsable) */}
               <button
                 type="button"
-                onClick={() => setSelectedPjTagFilter(null)}
-                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                  selectedPjTagFilter === null
-                    ? 'bg-amber-950/60 text-amber-300 border border-amber-800/80 font-medium'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                onClick={() => toggleFilters('grupo')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['grupo'] || selectedEstadoPjFilter !== 'todos' || selectedPjTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
                 }`}
               >
-                Todas
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(selectedEstadoPjFilter !== 'todos' || selectedPjTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
               </button>
-              {pjsTags.map(({ tag, count }) => (
+
+              {/* Limpiar filtros activos */}
+              {(selectedEstadoPjFilter !== 'todos' || selectedPjTagFilter || searchPjTerm) && (
                 <button
-                  key={tag}
                   type="button"
-                  onClick={() => setSelectedPjTagFilter(selectedPjTagFilter === tag ? null : tag)}
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-                    selectedPjTagFilter === tag
-                      ? 'bg-amber-950/60 text-amber-300 border border-amber-800/80 font-medium'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
-                  }`}
+                  onClick={() => {
+                    setSelectedEstadoPjFilter('todos');
+                    setSelectedPjTagFilter(null);
+                    setSearchPjTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
                 >
-                  <span>#{tag}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">({count})</span>
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
                 </button>
-              ))}
+              )}
             </div>
-          )}
+
+            {/* Panel colapsable de filtros secundarios para Grupo */}
+            {(showFilters['grupo'] || selectedEstadoPjFilter !== 'todos' || selectedPjTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-400 font-medium">Estado:</span>
+                  <select
+                    value={selectedEstadoPjFilter}
+                    onChange={(e) => setSelectedEstadoPjFilter(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-hidden focus:border-[#c9a227]"
+                  >
+                    <option value="todos">Todos los estados</option>
+                    <option value="activo">Activo</option>
+                    <option value="retirado">Retirado</option>
+                    <option value="muerto">Muerto</option>
+                    <option value="desaparecido">Desaparecido</option>
+                  </select>
+                </div>
+
+                {pjsTags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      Etiquetas:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPjTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedPjTagFilter === null
+                          ? 'bg-[#c9a227] text-black font-semibold'
+                          : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {pjsTags.map(({ tag, count }) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSelectedPjTagFilter(selectedPjTagFilter === tag ? null : tag)}
+                        className={`text-xs px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border ${
+                          selectedPjTagFilter === tag
+                            ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                        }`}
+                      >
+                        <span>#{tag}</span>
+                        <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${selectedPjTagFilter === tag ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Listado de tarjetas de personajes */}
           {pjs.length === 0 ? (
@@ -1356,6 +1588,7 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   pj={pj}
                   objetos={objetos}
                   modoApp={modoApp}
+                  canManageCampaign={canManageCampaign || !isPlayer}
                   onSelect={onSelectPj}
                   onEdit={(p) => {
                     if (isPlayer && p.user_id && currentUserId && p.user_id !== currentUserId) {
@@ -1378,120 +1611,151 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: NPCS */}
       {activeTab === 'npcs' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas de NPCs */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
                 <span>Fichas de NPCs</span>
                 <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {npcs.length}
+                  {filteredNpcs.length !== npcs.length ? `${filteredNpcs.length}/${npcs.length}` : npcs.length}
                 </span>
               </h2>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Búsqueda */}
-              <div className="relative flex-1 sm:flex-initial sm:w-56">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchNpcTerm}
-                  onChange={(e) => setSearchNpcTerm(e.target.value)}
-                  placeholder="Buscar por nombre, rol, notas..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
-                />
-              </div>
-
-              {/* Filtro por actitud */}
-              <div className="relative">
-                <select
-                  value={actitudFilter}
-                  onChange={(e) => setActitudFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
-                >
-                  <option value="todas">Actitud: Todas</option>
-                  <option value="aliado">🟢 Aliados</option>
-                  <option value="amistoso">🟢 Amistosos</option>
-                  <option value="neutral">⚪ Neutrales</option>
-                  <option value="receloso">🟠 Recelosos</option>
-                  <option value="hostil">🔴 Hostiles</option>
-                  <option value="desconocido">⚫ Desconocidos</option>
-                </select>
-              </div>
-
-              {/* Botón + Nuevo NPC (Solo DM o Host) */}
+              {/* Botón + Nuevo NPC en escritorio */}
               {canManageCampaign && (
                 <button
                   id="nuevo-npc-btn"
                   type="button"
                   onClick={onNuevoNpc}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors"
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors shrink-0"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>+ Nuevo NPC</span>
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Barra de filtrado por etiquetas temáticas de NPCs */}
-          {npcTagFrequencies.length > 0 && (
-            <div className="p-3.5 rounded-xl bg-[#111827] border border-slate-800 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5 mr-1">
-                <Tag className="w-3.5 h-3.5 text-[#c9a227]" />
-                <span>Filtrar por etiqueta:</span>
-              </span>
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchNpcTerm}
+                  onChange={(e) => setSearchNpcTerm(e.target.value)}
+                  placeholder="Buscar nombre, rol, notas..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
+                />
+                {searchNpcTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchNpcTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
+              {/* Botón Filtros (colapsable) */}
               <button
                 type="button"
-                onClick={() => setSelectedNpcTagFilter(null)}
-                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                  selectedNpcTagFilter === null
-                    ? 'bg-[#c9a227] text-black font-semibold'
-                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                onClick={() => toggleFilters('npcs')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['npcs'] || actitudFilter !== 'todas' || selectedNpcTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
                 }`}
               >
-                Todos ({npcs.length})
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(actitudFilter !== 'todas' || selectedNpcTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
               </button>
 
-              {npcTagFrequencies.map(({ tag, count }) => {
-                const isSelected = selectedNpcTagFilter === tag;
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSelectedNpcTagFilter(isSelected ? null : tag)}
-                    className={`text-xs font-mono px-2.5 py-1 rounded-md border transition-all flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-amber-500/20 text-[#c9a227] border-[#c9a227]/70 ring-1 ring-[#c9a227]/40'
-                        : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
-                    }`}
-                  >
-                    <span>#{tag}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                        isSelected ? 'bg-[#c9a227]/30 text-amber-200' : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {selectedNpcTagFilter && (
+              {/* Limpiar filtros activos */}
+              {(actitudFilter !== 'todas' || selectedNpcTagFilter || searchNpcTerm) && (
                 <button
                   type="button"
-                  onClick={() => setSelectedNpcTagFilter(null)}
-                  className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto transition-colors"
+                  onClick={() => {
+                    setActitudFilter('todas');
+                    setSelectedNpcTagFilter(null);
+                    setSearchNpcTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Limpiar filtro (#{selectedNpcTagFilter})</span>
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
                 </button>
               )}
             </div>
-          )}
+
+            {/* Panel colapsable de filtros secundarios para NPCs */}
+            {(showFilters['npcs'] || actitudFilter !== 'todas' || selectedNpcTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-400 font-medium">Actitud:</span>
+                  <select
+                    value={actitudFilter}
+                    onChange={(e) => setActitudFilter(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
+                  >
+                    <option value="todas">Todas las actitudes</option>
+                    <option value="aliado">🟢 Aliados</option>
+                    <option value="amistoso">🟢 Amistosos</option>
+                    <option value="neutral">⚪ Neutrales</option>
+                    <option value="receloso">🟠 Recelosos</option>
+                    <option value="hostil">🔴 Hostiles</option>
+                    <option value="desconocido">⚫ Desconocidos</option>
+                  </select>
+                </div>
+
+                {npcTagFrequencies.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      Etiquetas:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNpcTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedNpcTagFilter === null
+                          ? 'bg-[#c9a227] text-black font-semibold'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      Todos ({npcs.length})
+                    </button>
+                    {npcTagFrequencies.map(({ tag, count }) => {
+                      const isSelected = selectedNpcTagFilter === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSelectedNpcTagFilter(isSelected ? null : tag)}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                              : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                          }`}
+                        >
+                          <span>#{tag}</span>
+                          <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Lista de NPCs */}
           {npcs.length === 0 ? (
@@ -1535,119 +1799,24 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredNpcs.map((npc) => {
-                const actitudConfig = ACTITUD_CONFIG[npc.actitud] || ACTITUD_CONFIG.neutral;
-                const displayName = npc.nombre_conocido ? npc.nombre : '?';
-
-                return (
-                  <div
-                    key={npc.id}
-                    id={`npc-card-${npc.id}`}
-                    onClick={() => onSelectNpc(npc)}
-                    className="group rounded-xl bg-[#111827] border border-slate-800 hover:border-amber-500/50 p-5 transition-all duration-200 cursor-pointer shadow-md hover:shadow-xl hover:shadow-amber-950/20 flex flex-col justify-between space-y-3"
-                  >
-                    <div className="space-y-2.5">
-                      {/* Cabecera de la tarjeta: Nombre, Rol y Actitud */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="font-serif text-base md:text-lg font-bold text-slate-100 group-hover:text-amber-200 transition-colors truncate flex items-center gap-2">
-                            <span>{displayName}</span>
-                            {!npc.nombre_conocido && (
-                              <span
-                                className="inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700"
-                                title="Nombre secreto no revelado aún a los aventureros"
-                              >
-                                <EyeOff className="w-3 h-3" />
-                                <span>Oculto</span>
-                              </span>
-                            )}
-                          </h3>
-                          {npc.rol && (
-                            <span className="text-xs text-[#c9a227] font-medium block truncate">
-                              {npc.rol}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Badge de Actitud y DM */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {modoApp === 'dm' && npc.notas_dm && (
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-950/60 text-[#c9a227] border border-amber-800/60"
-                              title="Contiene notas privadas del DM"
-                            >
-                              <Shield className="w-3 h-3 text-[#c9a227]" />
-                              <span>DM</span>
-                            </span>
-                          )}
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 border ${actitudConfig.bg} ${actitudConfig.text} ${actitudConfig.border}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${actitudConfig.dot}`} />
-                            <span>{actitudConfig.label}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Ubicación habitual si existe */}
-                      {npc.ubicacion_habitual && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span className="truncate">{npc.ubicacion_habitual}</span>
-                        </div>
-                      )}
-
-                      {/* Descripción breve o Información conocida */}
-                      {npc.descripcion && (
-                        <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                          {npc.descripcion}
-                        </p>
-                      )}
-
-                      {!npc.descripcion && npc.informacion_conocida && (
-                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed italic">
-                          &quot;{npc.informacion_conocida}&quot;
-                        </p>
-                      )}
-
-                      {/* Etiquetas temáticas como chips */}
-                      {npc.etiquetas && npc.etiquetas.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          {npc.etiquetas.map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedNpcTagFilter(selectedNpcTagFilter === t ? null : t);
-                              }}
-                              className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
-                                selectedNpcTagFilter === t
-                                  ? 'bg-amber-500/25 text-amber-200 border-amber-600'
-                                  : 'bg-slate-900 text-amber-300/80 border-slate-800 hover:border-amber-700/60 hover:text-amber-200'
-                              }`}
-                              title={`Filtrar por #${t}`}
-                            >
-                              #{t}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Pie de la tarjeta: botón ver ficha */}
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-slate-500">
-                        {new Date(npc.creado_en).toLocaleDateString()}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-slate-300 group-hover:text-[#c9a227] font-medium transition-colors">
-                        <span>Ver ficha completa</span>
-                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredNpcs.map((npc) => (
+                <NpcCard
+                  key={npc.id}
+                  npc={npc}
+                  modoApp={modoApp}
+                  canManageCampaign={canManageCampaign}
+                  onSelect={onSelectNpc}
+                  onEdit={onEditNpc}
+                  onDelete={() =>
+                    setDeleteTarget({
+                      type: 'npc',
+                      id: npc.id,
+                      name: npc.nombre,
+                    })
+                  }
+                  onTagClick={(tag) => setSelectedNpcTagFilter(selectedNpcTagFilter === tag ? null : tag)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -1655,139 +1824,175 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: LUGARES */}
       {activeTab === 'lugares' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas de Lugares */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
-                <span>Atlas de Lugares</span>
-                <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {lugares.length}
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {isFilteringLugares
-                  ? `Mostrando resultados filtrados (${filteredLugares.length} encontrados)`
-                  : 'Mostrando lugares principales. Haz clic para ver sus sub-lugares y detalles.'}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Búsqueda */}
-              <div className="relative flex-1 sm:flex-initial sm:w-56">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchLugarTerm}
-                  onChange={(e) => setSearchLugarTerm(e.target.value)}
-                  placeholder="Buscar lugares, rutas o notas..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
-                />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
+                  <span>Atlas de Lugares</span>
+                  <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+                    {isFilteringLugares ? `${filteredLugares.length}/${lugares.length}` : lugares.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {isFilteringLugares
+                    ? `Mostrando resultados filtrados (${filteredLugares.length} encontrados)`
+                    : 'Lugares principales y sub-lugares organizados jerárquicamente.'}
+                </p>
               </div>
 
-              {/* Filtro por Tipo */}
-              <div className="relative">
-                <select
-                  value={tipoLugarFilter}
-                  onChange={(e) => setTipoLugarFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
-                >
-                  <option value="todos">Tipo: Todos</option>
-                  {Object.entries(TIPO_LUGAR_CONFIG).map(([key, cfg]) => (
-                    <option key={key} value={key}>
-                      {cfg.iconLabel} {cfg.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro por Estado */}
-              <div className="relative">
-                <select
-                  value={estadoLugarFilter}
-                  onChange={(e) => setEstadoLugarFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
-                >
-                  <option value="todos">Estado: Todos</option>
-                  <option value="visitado">🟢 Visitado</option>
-                  <option value="conocido">🔵 Conocido</option>
-                  <option value="misterioso">🟠 Misterioso</option>
-                  <option value="inaccesible">⚪ Inaccesible</option>
-                </select>
-              </div>
-
-              {/* Botón + Nuevo Lugar (Solo DM o Host) */}
+              {/* Botón + Nuevo Lugar en escritorio */}
               {canManageCampaign && (
                 <button
                   id="nuevo-lugar-btn"
                   type="button"
                   onClick={onNuevoLugar}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors"
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors shrink-0"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>+ Nuevo lugar</span>
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Barra de filtrado por etiquetas temáticas de Lugares */}
-          {lugarTagFrequencies.length > 0 && (
-            <div className="p-3.5 rounded-xl bg-[#111827] border border-slate-800 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5 mr-1">
-                <Tag className="w-3.5 h-3.5 text-[#c9a227]" />
-                <span>Filtrar por etiqueta:</span>
-              </span>
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchLugarTerm}
+                  onChange={(e) => setSearchLugarTerm(e.target.value)}
+                  placeholder="Buscar lugares, rutas o notas..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
+                />
+                {searchLugarTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchLugarTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
+              {/* Botón Filtros (colapsable) */}
               <button
                 type="button"
-                onClick={() => setSelectedLugarTagFilter(null)}
-                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                  selectedLugarTagFilter === null
-                    ? 'bg-[#c9a227] text-black font-semibold'
-                    : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                onClick={() => toggleFilters('lugares')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['lugares'] || tipoLugarFilter !== 'todos' || estadoLugarFilter !== 'todos' || selectedLugarTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
                 }`}
               >
-                Todos ({lugares.length})
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(tipoLugarFilter !== 'todos' || estadoLugarFilter !== 'todos' || selectedLugarTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
               </button>
 
-              {lugarTagFrequencies.map(({ tag, count }) => {
-                const isSelected = selectedLugarTagFilter === tag;
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setSelectedLugarTagFilter(isSelected ? null : tag)}
-                    className={`text-xs font-mono px-2.5 py-1 rounded-md border transition-all flex items-center gap-1.5 ${
-                      isSelected
-                        ? 'bg-amber-500/20 text-[#c9a227] border-[#c9a227]/70 ring-1 ring-[#c9a227]/40'
-                        : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
-                    }`}
-                  >
-                    <span>#{tag}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded font-sans font-bold ${
-                        isSelected ? 'bg-[#c9a227]/30 text-amber-200' : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {selectedLugarTagFilter && (
+              {/* Limpiar filtros activos */}
+              {(tipoLugarFilter !== 'todos' || estadoLugarFilter !== 'todos' || selectedLugarTagFilter || searchLugarTerm) && (
                 <button
                   type="button"
-                  onClick={() => setSelectedLugarTagFilter(null)}
-                  className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto transition-colors"
+                  onClick={() => {
+                    setTipoLugarFilter('todos');
+                    setEstadoLugarFilter('todos');
+                    setSelectedLugarTagFilter(null);
+                    setSearchLugarTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Limpiar filtro (#{selectedLugarTagFilter})</span>
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
                 </button>
               )}
             </div>
-          )}
+
+            {/* Panel colapsable de filtros secundarios para Lugares */}
+            {(showFilters['lugares'] || tipoLugarFilter !== 'todos' || estadoLugarFilter !== 'todos' || selectedLugarTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 font-medium">Tipo:</span>
+                    <select
+                      value={tipoLugarFilter}
+                      onChange={(e) => setTipoLugarFilter(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
+                    >
+                      <option value="todos">Todos los tipos</option>
+                      {Object.entries(TIPO_LUGAR_CONFIG).map(([key, cfg]) => (
+                        <option key={key} value={key}>
+                          {cfg.iconLabel} {cfg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 font-medium">Estado:</span>
+                    <select
+                      value={estadoLugarFilter}
+                      onChange={(e) => setEstadoLugarFilter(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
+                    >
+                      <option value="todos">Todos los estados</option>
+                      <option value="visitado">🟢 Visitado</option>
+                      <option value="conocido">🔵 Conocido</option>
+                      <option value="misterioso">🟠 Misterioso</option>
+                      <option value="inaccesible">⚪ Inaccesible</option>
+                    </select>
+                  </div>
+                </div>
+
+                {lugarTagFrequencies.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      Etiquetas:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLugarTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedLugarTagFilter === null
+                          ? 'bg-[#c9a227] text-black font-semibold'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      Todos ({lugares.length})
+                    </button>
+                    {lugarTagFrequencies.map(({ tag, count }) => {
+                      const isSelected = selectedLugarTagFilter === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSelectedLugarTagFilter(isSelected ? null : tag)}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                              : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                          }`}
+                        >
+                          <span>#{tag}</span>
+                          <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Lista de Lugares */}
           {lugares.length === 0 ? (
@@ -1845,7 +2050,11 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                     parentLugar={parentLugar}
                     subLugaresCount={subCount}
                     modoApp={modoApp}
+                    canManageCampaign={canManageCampaign}
                     onSelect={onSelectLugar}
+                    onEdit={onEditLugar}
+                    onDelete={onDeleteLugar}
+                    onTagClick={(tag) => setSelectedLugarTagFilter(selectedLugarTagFilter === tag ? null : tag)}
                   />
                 );
               })}
@@ -1856,134 +2065,153 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: MISIONES */}
       {activeTab === 'misiones' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas de Misiones */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
-                <span>Tablón de Misiones y Objetivos</span>
-                <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {misiones.length}
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Encargos, misiones principales, contratos de recompensa y progreso paso a paso.
-              </p>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
+                  <span>Tablón de Misiones</span>
+                  <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+                    {filteredMisiones.length !== misiones.length ? `${filteredMisiones.length}/${misiones.length}` : misiones.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Encargos, contratos de recompensa y progreso paso a paso.
+                </p>
+              </div>
+
+              {/* Botón + Nueva Misión en escritorio */}
+              {canManageCampaign && (
+                <button
+                  id="nueva-mision-btn"
+                  type="button"
+                  onClick={onNuevaMision}
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shadow-md shadow-amber-950/40 shrink-0"
+                >
+                  <Plus className="w-4 h-4 text-black" />
+                  <span>Nueva Misión</span>
+                </button>
+              )}
             </div>
 
-            {/* Botón + Nueva Misión (Solo DM o Host) */}
-            {canManageCampaign && (
-              <button
-                id="nueva-mision-btn"
-                type="button"
-                onClick={onNuevaMision}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shadow-md shadow-amber-950/40 shrink-0"
-              >
-                <Plus className="w-4 h-4 text-black" />
-                <span>Nueva Misión</span>
-              </button>
-            )}
-          </div>
-
-          {/* Filtros y Búsqueda para Misiones */}
-          <div className="p-4 rounded-xl bg-[#111827] border border-amber-900/30 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Buscador de misiones */}
-              <div className="relative md:col-span-2">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   id="search-misiones-input"
                   type="text"
-                  placeholder="Buscar por título, pasos, descripción, recompensa o nota..."
+                  placeholder="Buscar misiones, recompensas o notas..."
                   value={searchMisionTerm}
                   onChange={(e) => setSearchMisionTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#0e1522] border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227] text-xs"
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227] text-xs"
                 />
                 {searchMisionTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchMisionTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
                     aria-label="Limpiar búsqueda"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
 
-              {/* Filtro por Estado */}
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-slate-400 shrink-0" />
-                <select
-                  id="filter-estado-mision-select"
-                  value={estadoMisionFilter}
-                  onChange={(e) => setEstadoMisionFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0e1522] border border-slate-700 text-slate-200 focus:outline-hidden focus:border-[#c9a227] text-xs"
-                >
-                  <option value="todas">Todos los estados</option>
-                  <option value="activa">Activa (Dorado)</option>
-                  <option value="completada">Completada (Verde)</option>
-                  <option value="pausada">Pausada (Naranja)</option>
-                  <option value="fallada">Fallada (Rojo)</option>
-                  <option value="abandonada">Abandonada (Gris)</option>
-                </select>
-              </div>
-            </div>
+              {/* Botón Filtros (colapsable) */}
+              <button
+                type="button"
+                onClick={() => toggleFilters('misiones')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['misiones'] || estadoMisionFilter !== 'todas' || selectedMisionTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(estadoMisionFilter !== 'todas' || selectedMisionTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
+              </button>
 
-            {/* Chips de Etiquetas para Misiones */}
-            {misionTagFrequencies.length > 0 && (
-              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-amber-400" />
-                  <span>Etiquetas:</span>
-                </span>
-
+              {/* Limpiar filtros activos */}
+              {(estadoMisionFilter !== 'todas' || selectedMisionTagFilter || searchMisionTerm) && (
                 <button
                   type="button"
-                  onClick={() => setSelectedMisionTagFilter(null)}
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                    selectedMisionTagFilter === null
-                      ? 'bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40'
-                      : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  }`}
+                  onClick={() => {
+                    setEstadoMisionFilter('todas');
+                    setSelectedMisionTagFilter(null);
+                    setSearchMisionTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
                 >
-                  Todas ({misiones.length})
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
                 </button>
+              )}
+            </div>
 
-                {misionTagFrequencies.map(({ tag, count }) => {
-                  const isSelected = selectedMisionTagFilter === tag;
-                  return (
+            {/* Panel colapsable de filtros secundarios para Misiones */}
+            {(showFilters['misiones'] || estadoMisionFilter !== 'todas' || selectedMisionTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-400 font-medium">Estado:</span>
+                  <select
+                    id="filter-estado-mision-select"
+                    value={estadoMisionFilter}
+                    onChange={(e) => setEstadoMisionFilter(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-hidden focus:border-[#c9a227] text-xs"
+                  >
+                    <option value="todas">Todos los estados</option>
+                    <option value="activa">Activa (Dorado)</option>
+                    <option value="completada">Completada (Verde)</option>
+                    <option value="pausada">Pausada (Naranja)</option>
+                    <option value="fallada">Fallada (Rojo)</option>
+                    <option value="abandonada">Abandonada (Gris)</option>
+                  </select>
+                </div>
+
+                {misionTagFrequencies.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      <span>Etiquetas:</span>
+                    </span>
                     <button
-                      key={tag}
                       type="button"
-                      onClick={() => setSelectedMisionTagFilter(isSelected ? null : tag)}
-                      className={`text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${
-                        isSelected
+                      onClick={() => setSelectedMisionTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedMisionTagFilter === null
                           ? 'bg-[#c9a227] text-black font-semibold'
-                          : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       }`}
                     >
-                      <span>#{tag}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-black/40 text-amber-200' : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {count}
-                      </span>
+                      Todas ({misiones.length})
                     </button>
-                  );
-                })}
-
-                {selectedMisionTagFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMisionTagFilter(null)}
-                    className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Limpiar filtro (#{selectedMisionTagFilter})</span>
-                  </button>
+                    {misionTagFrequencies.map(({ tag, count }) => {
+                      const isSelected = selectedMisionTagFilter === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSelectedMisionTagFilter(isSelected ? null : tag)}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                              : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                          }`}
+                        >
+                          <span>#{tag}</span>
+                          <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
@@ -2038,8 +2266,18 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   npcs={npcs}
                   lugares={lugares}
                   modoApp={modoApp}
+                  canManageCampaign={canManageCampaign}
                   onSelect={onSelectMision}
-                  onTagClick={(tag) => setSelectedMisionTagFilter(tag)}
+                  onEdit={onEditMision}
+                  onDelete={(m) =>
+                    setDeleteTarget({
+                      type: 'mision',
+                      id: m.id,
+                      name: m.titulo,
+                      raw: m,
+                    })
+                  }
+                  onTagClick={(tag) => setSelectedMisionTagFilter(selectedMisionTagFilter === tag ? null : tag)}
                 />
               ))}
             </div>
@@ -2049,133 +2287,169 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: OBJETOS */}
       {activeTab === 'objetos' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas de objetos */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
                 <span>Inventario & Tesoros</span>
                 <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {objetos.length}
+                  {filteredObjetos.length !== objetos.length ? `${filteredObjetos.length}/${objetos.length}` : objetos.length}
                 </span>
               </h2>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Búsqueda */}
-              <div className="relative flex-1 sm:flex-initial sm:w-52">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="buscar-objetos-input"
-                  type="text"
-                  value={searchObjetoTerm}
-                  onChange={(e) => setSearchObjetoTerm(e.target.value)}
-                  placeholder="Buscar objetos, efectos..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227]"
-                />
-              </div>
-
-              {/* Filtro por tipo de objeto */}
-              <select
-                id="filtro-tipo-objeto"
-                value={tipoObjetoFilter}
-                onChange={(e) => setTipoObjetoFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 focus:outline-hidden focus:border-[#c9a227]"
-              >
-                <option value="todos">Todos los tipos</option>
-                {Object.entries(TIPO_OBJETO_CONFIG).map(([key, cfg]) => (
-                  <option key={key} value={key}>
-                    {cfg.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Filtro por portador */}
-              <select
-                id="filtro-portador-objeto"
-                value={portadorFilter}
-                onChange={(e) => setPortadorFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-[#0e1522] border border-slate-700 text-xs text-slate-200 focus:outline-hidden focus:border-[#c9a227]"
-              >
-                <option value="todos">Todos los portadores</option>
-                <option value="__sin_asignar__">Sin asignar / Alijo</option>
-                {portadoresCampana.map((pj) => (
-                  <option key={pj} value={pj}>
-                    Lleva: {pj}
-                  </option>
-                ))}
-              </select>
-
-              {/* Botón + Nuevo objeto (Solo DM o Host) */}
+              {/* Botón + Nuevo objeto en escritorio */}
               {canManageCampaign && (
                 <button
                   id="nuevo-objeto-btn"
                   type="button"
                   onClick={onNuevoObjeto}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors whitespace-nowrap"
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#c9a227] hover:bg-[#dbb333] text-black shadow-md transition-colors shrink-0"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>Nuevo objeto</span>
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Fila de Filtro de Etiquetas Temáticas de Objetos */}
-          <div className="space-y-2">
-            {objetoTagFrequencies.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                <div className="flex items-center gap-1 text-xs text-slate-400 shrink-0 mr-1">
-                  <Tag className="w-3.5 h-3.5 text-[#c9a227]" />
-                  <span>Etiquetas:</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedObjetoTagFilter(null)}
-                  className={`text-xs px-2.5 py-1 rounded-md transition-colors shrink-0 ${
-                    selectedObjetoTagFilter === null
-                      ? 'bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40'
-                      : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  }`}
-                >
-                  Todos ({objetos.length})
-                </button>
-
-                {objetoTagFrequencies.map(({ tag, count }) => {
-                  const isSelected = selectedObjetoTagFilter === tag;
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setSelectedObjetoTagFilter(isSelected ? null : tag)}
-                      className={`text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
-                        isSelected
-                          ? 'bg-[#c9a227] text-black font-semibold'
-                          : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
-                      }`}
-                    >
-                      <span>#{tag}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-black/40 text-amber-200' : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {selectedObjetoTagFilter && (
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  id="buscar-objetos-input"
+                  type="text"
+                  value={searchObjetoTerm}
+                  onChange={(e) => setSearchObjetoTerm(e.target.value)}
+                  placeholder="Buscar objetos, efectos..."
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-[#c9a227]"
+                />
+                {searchObjetoTerm && (
                   <button
                     type="button"
-                    onClick={() => setSelectedObjetoTagFilter(null)}
-                    className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto shrink-0 transition-colors"
+                    onClick={() => setSearchObjetoTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
                   >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Limpiar (#{selectedObjetoTagFilter})</span>
+                    <X className="w-3 h-3" />
                   </button>
+                )}
+              </div>
+
+              {/* Botón Filtros (colapsable) */}
+              <button
+                type="button"
+                onClick={() => toggleFilters('objetos')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['objetos'] || tipoObjetoFilter !== 'todos' || portadorFilter !== 'todos' || selectedObjetoTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(tipoObjetoFilter !== 'todos' || portadorFilter !== 'todos' || selectedObjetoTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
+              </button>
+
+              {/* Limpiar filtros activos */}
+              {(tipoObjetoFilter !== 'todos' || portadorFilter !== 'todos' || selectedObjetoTagFilter || searchObjetoTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipoObjetoFilter('todos');
+                    setPortadorFilter('todos');
+                    setSelectedObjetoTagFilter(null);
+                    setSearchObjetoTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
+                </button>
+              )}
+            </div>
+
+            {/* Panel colapsable de filtros secundarios para Objetos */}
+            {(showFilters['objetos'] || tipoObjetoFilter !== 'todos' || portadorFilter !== 'todos' || selectedObjetoTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 font-medium">Tipo:</span>
+                    <select
+                      id="filtro-tipo-objeto"
+                      value={tipoObjetoFilter}
+                      onChange={(e) => setTipoObjetoFilter(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-hidden focus:border-[#c9a227]"
+                    >
+                      <option value="todos">Todos los tipos</option>
+                      {Object.entries(TIPO_OBJETO_CONFIG).map(([key, cfg]) => (
+                        <option key={key} value={key}>
+                          {cfg.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 font-medium">Portador:</span>
+                    <select
+                      id="filtro-portador-objeto"
+                      value={portadorFilter}
+                      onChange={(e) => setPortadorFilter(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-hidden focus:border-[#c9a227]"
+                    >
+                      <option value="todos">Todos los portadores</option>
+                      <option value="__sin_asignar__">Sin asignar / Alijo</option>
+                      {portadoresCampana.map((pj) => (
+                        <option key={pj} value={pj}>
+                          Lleva: {pj}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {objetoTagFrequencies.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      <span>Etiquetas:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedObjetoTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedObjetoTagFilter === null
+                          ? 'bg-[#c9a227] text-black font-semibold'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      Todos ({objetos.length})
+                    </button>
+                    {objetoTagFrequencies.map(({ tag, count }) => {
+                      const isSelected = selectedObjetoTagFilter === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSelectedObjetoTagFilter(isSelected ? null : tag)}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                              : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                          }`}
+                        >
+                          <span>#{tag}</span>
+                          <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
@@ -2229,8 +2503,18 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   key={objeto.id}
                   objeto={objeto}
                   modoApp={modoApp}
+                  canManageCampaign={canManageCampaign}
                   onSelect={onSelectObjeto}
-                  onTagClick={(tag) => setSelectedObjetoTagFilter(tag)}
+                  onEdit={onEditObjeto}
+                  onDelete={(o) =>
+                    setDeleteTarget({
+                      type: 'objeto',
+                      id: o.id,
+                      name: o.nombre,
+                      raw: o,
+                    })
+                  }
+                  onTagClick={(tag) => setSelectedObjetoTagFilter(selectedObjetoTagFilter === tag ? null : tag)}
                 />
               ))}
             </div>
@@ -2240,68 +2524,105 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
       {/* CONTENIDO DE LA PESTAÑA: BESTIARIO */}
       {activeTab === 'bestiario' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-4 animate-in fade-in duration-150">
           {/* Barra de herramientas del Bestiario */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-amber-100 flex items-center gap-2">
-                <span>Bestiario y Cuaderno de Monstruos</span>
-                <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {monstruos.length}
-                </span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Cuaderno de campo: registra avistamientos, comportamientos, debilidades observadas y tácticas
-              </p>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-amber-100 flex items-center gap-2">
+                  <span>Bestiario y Criaturas</span>
+                  <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+                    {filteredMonstruos.length !== monstruos.length ? `${filteredMonstruos.length}/${monstruos.length}` : monstruos.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Cuaderno de campo: registra avistamientos, comportamientos y debilidades observadas.
+                </p>
+              </div>
+
+              {/* Botón Registrar Criatura en escritorio */}
+              {canManageCampaign && (
+                <button
+                  id="nuevo-monstruo-btn"
+                  type="button"
+                  onClick={onNuevoMonstruo}
+                  className="hidden md:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shadow-md shadow-amber-950/20 shrink-0"
+                >
+                  <Plus className="w-4 h-4 text-black" />
+                  <span>Registrar criatura</span>
+                </button>
+              )}
             </div>
 
-            {/* Botón Registrar Criatura (Solo DM o Host) */}
-            {canManageCampaign && (
-              <button
-                id="nuevo-monstruo-btn"
-                type="button"
-                onClick={onNuevoMonstruo}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#c9a227] hover:bg-[#dbb333] text-black font-semibold text-xs transition-colors shadow-md shadow-amber-950/20 shrink-0"
-              >
-                <Plus className="w-4 h-4 text-black" />
-                <span>Registrar criatura</span>
-              </button>
-            )}
-          </div>
-
-          {/* Filtros: Búsqueda, Tipo y Etiquetas */}
-          <div className="space-y-3 bg-[#111827] p-4 rounded-xl border border-amber-900/30">
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-              {/* Barra de Búsqueda */}
-              <div className="relative sm:col-span-8">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            {/* Fila de controles: búsqueda + botón filtros + limpiar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                 <input
                   id="buscar-monstruos-input"
                   type="text"
-                  placeholder="Buscar por nombre, debilidad, hábitat o notas..."
+                  placeholder="Buscar criaturas, hábitat, notas..."
                   value={searchMonstruoTerm}
                   onChange={(e) => setSearchMonstruoTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#0b0f17] border border-slate-800 focus:border-[#c9a227] text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition-colors"
+                  className="w-full pl-8 pr-8 py-2 rounded-xl bg-[#0e1522] border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#c9a227]"
                 />
                 {searchMonstruoTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchMonstruoTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    aria-label="Limpiar búsqueda"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
 
-              {/* Filtro por Tipo */}
-              <div className="sm:col-span-4">
-                <div className="relative">
+              {/* Botón Filtros (colapsable) */}
+              <button
+                type="button"
+                onClick={() => toggleFilters('bestiario')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all shrink-0 min-h-[38px] ${
+                  showFilters['bestiario'] || tipoMonstruoFilter !== 'todos' || selectedMonstruoTagFilter
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-600/60'
+                    : 'bg-[#0e1522] text-slate-300 border-slate-700 hover:text-slate-100'
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-[#c9a227]" />
+                <span>Filtros</span>
+                {(tipoMonstruoFilter !== 'todos' || selectedMonstruoTagFilter) && (
+                  <span className="w-2 h-2 rounded-full bg-[#c9a227]" />
+                )}
+              </button>
+
+              {/* Limpiar filtros activos */}
+              {(tipoMonstruoFilter !== 'todos' || selectedMonstruoTagFilter || searchMonstruoTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipoMonstruoFilter('todos');
+                    setSelectedMonstruoTagFilter(null);
+                    setSearchMonstruoTerm('');
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs text-amber-300/90 hover:text-amber-200 bg-amber-950/40 border border-amber-900/50 hover:bg-amber-950/60 transition-colors min-h-[38px]"
+                  title="Restablecer filtros"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden sm:inline">Limpiar</span>
+                </button>
+              )}
+            </div>
+
+            {/* Panel colapsable de filtros secundarios para Bestiario */}
+            {(showFilters['bestiario'] || tipoMonstruoFilter !== 'todos' || selectedMonstruoTagFilter) && (
+              <div className="p-3 rounded-xl bg-[#0e1522] border border-amber-900/30 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-400 font-medium">Tipo:</span>
                   <select
                     id="filtro-tipo-monstruo-select"
                     value={tipoMonstruoFilter}
                     onChange={(e) => setTipoMonstruoFilter(e.target.value)}
-                    className="w-full pl-3 pr-8 py-2 rounded-lg bg-[#0b0f17] border border-slate-800 focus:border-[#c9a227] text-xs text-slate-200 focus:outline-none transition-colors appearance-none cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-[#c9a227] cursor-pointer"
                   >
                     <option value="todos">Todos los tipos ({monstruos.length})</option>
                     {Object.entries(TIPO_MONSTRUO_CONFIG).map(([tipoKey, cfg]) => {
@@ -2313,51 +2634,46 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                       );
                     })}
                   </select>
-                  <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                 </div>
-              </div>
-            </div>
 
-            {/* Filtro por Etiquetas Temáticas */}
-            {monstruoTagFrequencies.length > 0 && (
-              <div className="pt-2 border-t border-slate-800/60 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                <span className="text-[11px] text-slate-400 font-medium shrink-0 flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-[#c9a227]" /> Etiquetas:
-                </span>
-                {monstruoTagFrequencies.map(({ tag, count }) => {
-                  const isSelected = selectedMonstruoTagFilter === tag;
-                  return (
+                {monstruoTagFrequencies.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                    <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3 text-[#c9a227]" />
+                      <span>Etiquetas:</span>
+                    </span>
                     <button
-                      key={tag}
                       type="button"
-                      onClick={() => setSelectedMonstruoTagFilter(isSelected ? null : tag)}
-                      className={`text-xs px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 shrink-0 ${
-                        isSelected
+                      onClick={() => setSelectedMonstruoTagFilter(null)}
+                      className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        selectedMonstruoTagFilter === null
                           ? 'bg-[#c9a227] text-black font-semibold'
-                          : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                       }`}
                     >
-                      <span>#{tag}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-black/40 text-amber-200' : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {count}
-                      </span>
+                      Todos ({monstruos.length})
                     </button>
-                  );
-                })}
-
-                {selectedMonstruoTagFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMonstruoTagFilter(null)}
-                    className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-200 ml-auto shrink-0 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Limpiar (#{selectedMonstruoTagFilter})</span>
-                  </button>
+                    {monstruoTagFrequencies.map(({ tag, count }) => {
+                      const isSelected = selectedMonstruoTagFilter === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setSelectedMonstruoTagFilter(isSelected ? null : tag)}
+                          className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-500/25 text-[#c9a227] border-[#c9a227] font-bold'
+                              : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-amber-800/60 hover:text-amber-200'
+                          }`}
+                        >
+                          <span>#{tag}</span>
+                          <span className={`text-[10px] px-1 py-0.2 rounded font-sans ${isSelected ? 'bg-black/30 text-amber-200' : 'text-slate-400'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
@@ -2410,14 +2726,53 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   key={monstruo.id}
                   monstruo={monstruo}
                   modoApp={modoApp}
+                  canManageCampaign={canManageCampaign}
                   onSelect={onSelectMonstruo}
-                  onTagClick={(tag) => setSelectedMonstruoTagFilter(tag)}
+                  onEdit={onEditMonstruo}
+                  onDelete={(m) =>
+                    setDeleteTarget({
+                      type: 'monstruo',
+                      id: m.id,
+                      name: m.nombre,
+                      raw: m,
+                    })
+                  }
+                  onTagClick={(tag) => setSelectedMonstruoTagFilter(selectedMonstruoTagFilter === tag ? null : tag)}
                 />
               ))}
             </div>
           )}
         </div>
       )}
+
+      {/* Modal de confirmación para eliminar entidades individuales (Sesión, NPC, Misión, Objeto, Monstruo) */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title={
+          deleteTarget?.type === 'sesion'
+            ? `¿Eliminar "${deleteTarget.name}"?`
+            : deleteTarget?.type === 'npc'
+            ? `¿Eliminar al NPC "${deleteTarget.name}"?`
+            : deleteTarget?.type === 'mision'
+            ? `¿Eliminar la misión "${deleteTarget.name}"?`
+            : deleteTarget?.type === 'objeto'
+            ? `¿Eliminar el objeto "${deleteTarget.name}"?`
+            : `¿Eliminar la criatura "${deleteTarget?.name}"?`
+        }
+        message="Esta acción no se puede deshacer. Se desvinculará de las sesiones o registros relacionados."
+        confirmText="Eliminar"
+        isDangerous={true}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          if (deleteTarget.type === 'sesion') onDeleteSesion?.(deleteTarget.id);
+          else if (deleteTarget.type === 'npc') onDeleteNpc?.(deleteTarget.id);
+          else if (deleteTarget.type === 'mision') onDeleteMision?.(deleteTarget.raw);
+          else if (deleteTarget.type === 'objeto') onDeleteObjeto?.(deleteTarget.raw);
+          else if (deleteTarget.type === 'monstruo') onDeleteMonstruo?.(deleteTarget.raw);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Modal de confirmación para eliminar campaña */}
       <ConfirmModal
@@ -2447,6 +2802,20 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
           }}
           onClose={() => setIsImportEntityOpen(false)}
         />
+      )}
+
+      {/* BOTÓN FLOTANTE DE ACCIÓN RÁPIDA (FAB) PARA CELULAR */}
+      {canManageCampaign && fabAction && (
+        <button
+          id="mobile-fab-btn"
+          type="button"
+          onClick={fabAction.onClick}
+          aria-label={fabAction.label}
+          className="md:hidden fixed bottom-[72px] right-4 z-40 inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-gradient-to-r from-[#c9a227] to-amber-500 text-black font-bold text-xs shadow-xl shadow-black/80 border border-amber-300/50 active:scale-95 transition-all"
+        >
+          <Plus className="w-4 h-4 text-black stroke-[2.5]" />
+          <span>{fabAction.shortLabel}</span>
+        </button>
       )}
 
       {/* BARRA INFERIOR FIJA PARA CELULAR (Bottom Navigation Bar) */}
