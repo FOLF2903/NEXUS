@@ -130,8 +130,6 @@ export const PjModal: React.FC<PjModalProps> = ({
     setError(null);
   }, [pjToEdit, isOpen]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanNombre = nombre.trim();
@@ -192,20 +190,6 @@ export const PjModal: React.FC<PjModalProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const isDirty = Boolean(
     pjToEdit
       ? (nombre.trim() !== (pjToEdit.nombre || '') ||
@@ -230,6 +214,22 @@ export const PjModal: React.FC<PjModalProps> = ({
       onClose();
     }
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div

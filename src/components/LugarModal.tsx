@@ -158,6 +158,28 @@ export const LugarModal: React.FC<LugarModalProps> = ({
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isDirty = Boolean(
+    lugarToEdit
+      ? (nombre.trim() !== (lugarToEdit.nombre || '') ||
+         descripcion.trim() !== (lugarToEdit.descripcion || '') ||
+         notas.trim() !== (lugarToEdit.notas || '') ||
+         comoLlegar.trim() !== (lugarToEdit.como_llegar || ''))
+      : (nombre.trim() || descripcion.trim() || comoLlegar.trim() || notas.trim())
+  );
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      const confirmLeave = window.confirm(
+        'Tienes cambios sin guardar en este lugar. ¿Seguro que deseas salir sin guardar?'
+      );
+      if (confirmLeave) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -179,29 +201,7 @@ export const LugarModal: React.FC<LugarModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
-  const isDirty = Boolean(
-    lugarToEdit
-      ? (nombre.trim() !== (lugarToEdit.nombre || '') ||
-         descripcion.trim() !== (lugarToEdit.descripcion || '') ||
-         comoLlegar.trim() !== (lugarToEdit.como_llegar || '') ||
-         notas.trim() !== (lugarToEdit.notas || ''))
-      : (nombre.trim() || descripcion.trim() || comoLlegar.trim() || notas.trim())
-  );
-
-  const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en este lugar. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
-  };
+  }, [isOpen, isDirty, onClose]);
 
   // Lista de posibles padres válidos
   const validParentOptions = useMemo(() => {

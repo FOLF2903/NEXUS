@@ -101,8 +101,6 @@ export const MonstruoModal: React.FC<MonstruoModalProps> = ({
     setErrorNombre(false);
   }, [monstruoToEdit, isOpen]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalNombre = nombre.trim();
@@ -155,20 +153,6 @@ export const MonstruoModal: React.FC<MonstruoModalProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const isDirty = Boolean(
     monstruoToEdit
       ? (nombre.trim() !== (monstruoToEdit.nombre || '') ||
@@ -191,6 +175,20 @@ export const MonstruoModal: React.FC<MonstruoModalProps> = ({
       onClose();
     }
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
 
   if (!isOpen) return null;
 

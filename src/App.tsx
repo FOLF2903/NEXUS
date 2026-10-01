@@ -2472,18 +2472,20 @@ export default function App() {
       </footer>
 
       {/* MODAL: Crear / Editar Campaña */}
-      <CampanaModal
-        isOpen={isCampanaModalOpen}
-        campanaToEdit={campanaToEdit}
-        onClose={() => {
-          setIsCampanaModalOpen(false);
-          setCampanaToEdit(null);
-        }}
-        onSave={handleSaveCampana}
-      />
+      {isCampanaModalOpen && (
+        <CampanaModal
+          isOpen={isCampanaModalOpen}
+          campanaToEdit={campanaToEdit}
+          onClose={() => {
+            setIsCampanaModalOpen(false);
+            setCampanaToEdit(null);
+          }}
+          onSave={handleSaveCampana}
+        />
+      )}
 
       {/* MODAL: Crear / Editar Sesión */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isSesionModalOpen && (
         <SesionModal
           isOpen={isSesionModalOpen}
           campanaId={selectedCampanaId}
@@ -2504,7 +2506,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar NPC */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isNpcModalOpen && (
         <NpcModal
           isOpen={isNpcModalOpen}
           campanaId={selectedCampanaId}
@@ -2519,7 +2521,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar Lugar */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isLugarModalOpen && (
         <LugarModal
           isOpen={isLugarModalOpen}
           campanaId={selectedCampanaId}
@@ -2536,7 +2538,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar Misión */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isMisionModalOpen && (
         <MisionModal
           isOpen={isMisionModalOpen}
           campanaId={selectedCampanaId}
@@ -2553,7 +2555,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar Objeto */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isObjetoModalOpen && (
         <ObjetoModal
           isOpen={isObjetoModalOpen}
           campana={activeCampana || undefined}
@@ -2569,7 +2571,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar Monstruo */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isMonstruoModalOpen && (
         <MonstruoModal
           isOpen={isMonstruoModalOpen}
           campana={activeCampana || undefined}
@@ -2584,7 +2586,7 @@ export default function App() {
       )}
 
       {/* MODAL: Crear / Editar Personaje Jugador (PJ) */}
-      {selectedCampanaId && (
+      {selectedCampanaId && isPjModalOpen && (
         <PjModal
           isOpen={isPjModalOpen}
           campanaId={selectedCampanaId}

@@ -15,11 +15,6 @@ export const DmNotesSection: React.FC<DmNotesSectionProps> = ({
   onSaveNotasDm,
   entityName,
 }) => {
-  // En Modo Jugador, NO se renderiza nada
-  if (modoApp !== 'dm') {
-    return null;
-  }
-
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(notasDm);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -36,6 +31,11 @@ export const DmNotesSection: React.FC<DmNotesSectionProps> = ({
       setTimeout(() => setSavedSuccess(false), 2000);
     }
   };
+
+  // En Modo Jugador, NO se renderiza nada
+  if (modoApp !== 'dm') {
+    return null;
+  }
 
   return (
     <div className="p-5 rounded-2xl bg-[#0f141f] border-2 border-amber-600/60 shadow-lg shadow-amber-950/30 relative overflow-hidden">

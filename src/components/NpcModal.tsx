@@ -130,21 +130,6 @@ export const NpcModal: React.FC<NpcModalProps> = ({
     }
   }, [isOpen]);
 
-  // Manejo de Escape
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const isDirty = Boolean(
     npcToEdit
       ? (nombre.trim() !== (npcToEdit.nombre || '') ||
@@ -167,6 +152,21 @@ export const NpcModal: React.FC<NpcModalProps> = ({
       onClose();
     }
   };
+
+  // Manejo de Escape
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
 
   if (!isOpen) return null;
 

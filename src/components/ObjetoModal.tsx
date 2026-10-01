@@ -135,8 +135,6 @@ export const ObjetoModal: React.FC<ObjetoModalProps> = ({
     setErrorNombre(false);
   }, [objetoToEdit, isOpen]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) {
@@ -179,29 +177,6 @@ export const ObjetoModal: React.FC<ObjetoModalProps> = ({
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        firstInputRef.current?.focus();
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const isDirty = Boolean(
     objetoToEdit
       ? (nombre.trim() !== (objetoToEdit.nombre || '') ||
@@ -224,6 +199,29 @@ export const ObjetoModal: React.FC<ObjetoModalProps> = ({
       onClose();
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
 
   return (
     <div

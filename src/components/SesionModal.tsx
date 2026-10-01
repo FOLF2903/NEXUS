@@ -107,21 +107,6 @@ export const SesionModal: React.FC<SesionModalProps> = ({
     }
   }, [isOpen]);
 
-  // Manejo de Escape
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const isDirty = Boolean(
     sesionToEdit
       ? (titulo.trim() !== sesionToEdit.titulo ||
@@ -143,6 +128,21 @@ export const SesionModal: React.FC<SesionModalProps> = ({
       onClose();
     }
   };
+
+  // Manejo de Escape
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
 
   // Preparar opciones de entidades
   const npcOptions: EntitySelectItem[] = useMemo(

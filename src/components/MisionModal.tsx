@@ -61,6 +61,29 @@ export const MisionModal: React.FC<MisionModalProps> = ({
   const [notas, setNotas] = useState('');
   const [etiquetas, setEtiquetas] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isDirty = Boolean(
+    misionToEdit
+      ? (titulo.trim() !== (misionToEdit.titulo || '') ||
+         descripcion.trim() !== (misionToEdit.descripcion || '') ||
+         notas.trim() !== (misionToEdit.notas || '') ||
+         recompensaConocida.trim() !== (misionToEdit.recompensa_conocida || ''))
+      : (titulo.trim() || descripcion.trim() || notas.trim() || recompensaConocida.trim())
+  );
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      const confirmLeave = window.confirm(
+        'Tienes cambios sin guardar en esta misión. ¿Seguro que deseas salir sin guardar?'
+      );
+      if (confirmLeave) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
 
   // Inicializar el formulario según si estamos editando o creando
   useEffect(() => {
@@ -108,7 +131,28 @@ export const MisionModal: React.FC<MisionModalProps> = ({
     }
   }, [isOpen, misionToEdit]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
 
   // Manejo de pasos
   const handleAddPaso = () => {
@@ -136,53 +180,6 @@ export const MisionModal: React.FC<MisionModalProps> = ({
 
   const handleRemovePaso = (id: string) => {
     setPasos((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const firstInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      const timer = setTimeout(() => {
-        firstInputRef.current?.focus();
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
-  const isDirty = Boolean(
-    misionToEdit
-      ? (titulo.trim() !== (misionToEdit.titulo || '') ||
-         descripcion.trim() !== (misionToEdit.descripcion || '') ||
-         notas.trim() !== (misionToEdit.notas || '') ||
-         recompensaConocida.trim() !== (misionToEdit.recompensa_conocida || ''))
-      : (titulo.trim() || descripcion.trim() || notas.trim() || recompensaConocida.trim())
-  );
-
-  const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en esta misión. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

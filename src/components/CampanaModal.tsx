@@ -72,23 +72,6 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
     }
   }, [isOpen]);
 
-  // Manejo de tecla Escape
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleRequestClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
-  if (!isOpen) return null;
-
   const isDirty = Boolean(
     campanaToEdit
       ? (nombre.trim() !== campanaToEdit.nombre ||
@@ -109,6 +92,23 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
       onClose();
     }
   };
+
+  // Manejo de tecla Escape
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDirty, onClose]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
