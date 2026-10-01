@@ -122,13 +122,13 @@ export const SesionView: React.FC<SesionViewProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Navegación superior / Breadcrumbs compacta */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+      {/* Barra de navegación superior fija (Sticky) con acceso rápido permanente */}
+      <div className="sticky top-0 z-30 bg-[#0a0e17]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-amber-900/30 transition-all flex items-center justify-between gap-2">
         <button
           id="back-to-campana-btn"
           type="button"
           onClick={onBackToCampana}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-700/60 transition-colors text-xs font-medium min-h-[44px]"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-700/60 transition-colors text-xs font-semibold min-h-[44px]"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{backLabel || `Volver a ${campana.nombre}`}</span>
@@ -141,7 +141,7 @@ export const SesionView: React.FC<SesionViewProps> = ({
             id="edit-current-sesion-btn"
             type="button"
             onClick={() => onEditSesion(sesion)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-amber-200 border border-slate-700 transition-colors text-xs font-medium min-h-[44px]"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-amber-200 border border-slate-700 transition-colors text-xs font-semibold min-h-[44px]"
           >
             <Edit3 className="w-3.5 h-3.5 text-amber-400" />
             <span>Editar</span>
@@ -172,7 +172,7 @@ export const SesionView: React.FC<SesionViewProps> = ({
       </div>
 
       {/* Cabecera de la sesión */}
-      <div className="p-6 md:p-8 rounded-xl bg-[#111827] border border-amber-900/40 shadow-lg">
+      <div className="p-4 sm:p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/40 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div className="inline-flex items-center gap-2">
             <span className="px-3 py-1 rounded-md bg-[#c9a227]/20 border border-[#c9a227]/40 text-[#c9a227] font-mono text-sm font-bold">
@@ -232,7 +232,7 @@ export const SesionView: React.FC<SesionViewProps> = ({
       </div>
 
       {/* Cuerpo de lectura de las Notas */}
-      <div className="p-6 md:p-8 rounded-xl bg-[#111827] border border-amber-900/30 shadow-md">
+      <div className="p-4 sm:p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/30 shadow-md">
         <div className="flex items-center gap-2 text-xs font-semibold text-amber-300 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">
           <BookOpen className="w-4 h-4 text-[#c9a227]" />
           <span>Crónica y Notas de la Sesión</span>
@@ -258,7 +258,7 @@ export const SesionView: React.FC<SesionViewProps> = ({
       />
 
       {/* Sección de Vinculaciones de la Sesión (Fase 7) */}
-      <div id="sesion-vinculaciones-card" className="p-6 rounded-xl bg-[#0e1522] border border-amber-900/40 space-y-4">
+      <div id="sesion-vinculaciones-card" className="p-4 sm:p-6 rounded-2xl bg-[#0e1522] border border-amber-900/40 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Link2 className="w-4 h-4 text-[#c9a227]" />

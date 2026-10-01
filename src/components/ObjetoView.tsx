@@ -86,13 +86,13 @@ export const ObjetoView: React.FC<ObjetoViewProps> = ({
 
   return (
     <div id={`objeto-view-${objeto.id}`} className="space-y-6 animate-in fade-in duration-150">
-      {/* Barra de navegación superior y acciones compacta */}
-      <div className="flex items-center justify-between gap-2 border-b border-amber-900/30 pb-3">
+      {/* Barra de navegación superior fija (Sticky) con acceso rápido permanente */}
+      <div className="sticky top-0 z-30 bg-[#0a0e17]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-amber-900/30 transition-all flex items-center justify-between gap-2">
         <button
           id="objeto-view-back-btn"
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-[#111827] border border-slate-800 min-h-[44px]"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-[#111827] border border-slate-800 min-h-[44px] font-semibold"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{backLabel || `Volver a ${campana.nombre}`}</span>
@@ -135,7 +135,7 @@ export const ObjetoView: React.FC<ObjetoViewProps> = ({
       </div>
 
       {/* Cabecera Principal de la Ficha */}
-      <div className="p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/40 shadow-xl space-y-4">
+      <div className="p-4 sm:p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/40 shadow-xl space-y-4">
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Badge Tipo */}
           <span

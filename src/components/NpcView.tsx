@@ -79,8 +79,8 @@ export const NpcView: React.FC<NpcViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Barra de navegación superior compacta */}
-      <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800">
+      {/* Barra de navegación superior fija (Sticky) con acceso rápido permanente */}
+      <div className="sticky top-0 z-30 bg-[#0a0e17]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-amber-900/30 transition-all flex items-center justify-between gap-2">
         <button
           id="back-to-npcs-btn"
           type="button"
@@ -97,7 +97,7 @@ export const NpcView: React.FC<NpcViewProps> = ({
             id="edit-npc-btn"
             type="button"
             onClick={() => onEdit(npc)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 hover:border-slate-600 transition-colors min-h-[44px]"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 hover:border-slate-600 transition-colors min-h-[44px]"
           >
             <Edit3 className="w-3.5 h-3.5 text-[#c9a227]" />
             <span>Editar</span>
@@ -128,7 +128,7 @@ export const NpcView: React.FC<NpcViewProps> = ({
       </div>
 
       {/* Cabecera principal del NPC */}
-      <div className="p-6 md:p-8 rounded-2xl bg-[#111827] border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-6 md:p-8 rounded-2xl bg-[#111827] border border-slate-800 shadow-xl relative overflow-hidden">
         {/* Glow sutil */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -213,9 +213,9 @@ export const NpcView: React.FC<NpcViewProps> = ({
       </div>
 
       {/* Secciones de contenido */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Descripción Física */}
-        <div className="p-6 rounded-xl bg-[#111827] border border-slate-800 space-y-3">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#111827] border border-slate-800 space-y-3">
           <h2 className="font-serif text-base font-bold text-amber-200 flex items-center gap-2">
             <User className="w-4 h-4 text-[#c9a227]" />
             <span>Descripción Física y Apariencia</span>
@@ -232,7 +232,7 @@ export const NpcView: React.FC<NpcViewProps> = ({
         </div>
 
         {/* Notas Adicionales */}
-        <div className="p-6 rounded-xl bg-[#111827] border border-slate-800 space-y-3">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#111827] border border-slate-800 space-y-3">
           <h2 className="font-serif text-base font-bold text-amber-200 flex items-center gap-2">
             <FileText className="w-4 h-4 text-[#c9a227]" />
             <span>Notas de Campaña</span>
@@ -249,7 +249,7 @@ export const NpcView: React.FC<NpcViewProps> = ({
         </div>
 
         {/* Información Conocida */}
-        <div className="p-6 rounded-xl bg-[#111827] border border-slate-800 space-y-3">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#111827] border border-slate-800 space-y-3">
           <h2 className="font-serif text-base font-bold text-emerald-300 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
             <span>Información Conocida (Hechos certeros)</span>
@@ -266,7 +266,7 @@ export const NpcView: React.FC<NpcViewProps> = ({
         </div>
 
         {/* Información Sospechada */}
-        <div className="p-6 rounded-xl bg-[#111827] border border-slate-800 space-y-3">
+        <div className="p-4 sm:p-6 rounded-2xl bg-[#111827] border border-slate-800 space-y-3">
           <h2 className="font-serif text-base font-bold text-amber-300 flex items-center gap-2">
             <HelpCircle className="w-4 h-4 text-amber-400" />
             <span>Información Sospechada (Rumores y sospechas)</span>

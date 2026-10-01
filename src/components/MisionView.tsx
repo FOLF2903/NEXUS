@@ -122,13 +122,13 @@ export const MisionView: React.FC<MisionViewProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-12">
-      {/* Barra de navegación superior compacta */}
-      <div className="flex items-center justify-between gap-2 pt-2">
+      {/* Barra de navegación superior fija (Sticky) con acceso permanente */}
+      <div className="sticky top-0 z-30 bg-[#0a0e17]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-amber-900/30 transition-all flex items-center justify-between gap-2">
         <button
           id="back-to-campana-misiones-btn"
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors px-3 py-2 rounded-lg bg-[#111827] border border-slate-800 hover:border-amber-700/50 min-h-[44px]"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-amber-300 transition-colors px-3 py-2 rounded-lg bg-[#111827] border border-slate-800 hover:border-amber-700/50 min-h-[44px] font-semibold"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{backLabel || 'Volver a Misiones'}</span>
@@ -171,7 +171,7 @@ export const MisionView: React.FC<MisionViewProps> = ({
       </div>
 
       {/* Tarjeta Principal de Cabecera */}
-      <div className="p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/40 shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-6 md:p-8 rounded-2xl bg-[#111827] border border-amber-900/40 shadow-xl relative overflow-hidden">
         {/* Adorno sutil */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 

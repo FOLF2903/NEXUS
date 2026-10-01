@@ -112,26 +112,27 @@ export const LugarView: React.FC<LugarViewProps> = ({
 
   return (
     <div id="lugar-view" className="space-y-6 animate-in fade-in duration-200">
-      {/* Barra superior de navegación y acciones */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      {/* Barra superior de navegación y acciones fija (Sticky) */}
+      <div className="sticky top-0 z-30 bg-[#0a0e17]/95 backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-amber-900/30 transition-all flex items-center justify-between gap-2">
         {/* Breadcrumbs de navegación */}
-        <div className="flex items-center flex-wrap gap-1.5 text-xs text-slate-400">
+        <div className="flex items-center flex-wrap gap-1 text-xs text-slate-400 min-w-0 flex-1 mr-2">
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1 text-slate-300 hover:text-amber-300 transition-colors py-1 px-2 rounded-md hover:bg-slate-800/60"
+            className="flex items-center gap-1 text-slate-300 hover:text-amber-300 transition-colors py-1.5 px-2.5 rounded-lg bg-slate-900 border border-slate-700 font-semibold shrink-0 min-h-[44px]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{backLabel || `Lugares de ${campana.nombre}`}</span>
+            <span className="hidden sm:inline">{backLabel || `Lugares de ${campana.nombre}`}</span>
+            <span className="sm:hidden">Lugares</span>
           </button>
 
           {breadcrumbs.map((crumb) => (
             <React.Fragment key={crumb.id}>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0 hidden sm:inline" />
               <button
                 type="button"
                 onClick={() => onSelectLugar(crumb)}
-                className="hover:text-amber-300 transition-colors py-1 px-2 rounded-md hover:bg-slate-800/60 max-w-[150px] truncate"
+                className="hidden sm:inline-flex hover:text-amber-300 transition-colors py-1 px-2 rounded-md hover:bg-slate-800/60 max-w-[120px] truncate"
                 title={crumb.nombre}
               >
                 {crumb.nombre_conocido ? crumb.nombre : '?'}
@@ -139,8 +140,8 @@ export const LugarView: React.FC<LugarViewProps> = ({
             </React.Fragment>
           ))}
 
-          <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-          <span className="text-[#c9a227] font-semibold py-1 px-2 bg-amber-950/30 rounded-md border border-amber-900/40 max-w-[180px] truncate">
+          <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0 hidden sm:inline" />
+          <span className="hidden sm:inline text-[#c9a227] font-semibold py-1 px-2 bg-amber-950/30 rounded-md border border-amber-900/40 max-w-[160px] truncate">
             {displayName}
           </span>
         </div>
@@ -182,7 +183,7 @@ export const LugarView: React.FC<LugarViewProps> = ({
       </div>
 
       {/* Tarjeta Principal de la Ficha */}
-      <div className="rounded-2xl bg-[#111827] border border-amber-900/40 p-6 md:p-8 shadow-xl space-y-6">
+      <div className="rounded-2xl bg-[#111827] border border-amber-900/40 p-4 sm:p-6 md:p-8 shadow-xl space-y-6">
         {/* Cabecera: Nombre, Tipo y Estado */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
           <div className="space-y-1.5">
