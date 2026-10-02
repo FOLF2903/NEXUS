@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { SingleEntityType, SingleEntityExport, Sesion } from '../types';
+import { generateUUID } from '../services/supabaseService';
 
 interface ImportEntityModalProps {
   isOpen: boolean;
@@ -169,7 +170,7 @@ export const ImportEntityModal: React.FC<ImportEntityModalProps> = ({
 
     const baseEntity = fileContent.entidad;
     const effectiveType = fileContent.tipo;
-    const newId = `${effectiveType}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newId = generateUUID();
 
     // Filtrar sesiones que sí existan en la campaña actual
     const currentSessionIds = new Set(existingSessions.map((s) => s.id));

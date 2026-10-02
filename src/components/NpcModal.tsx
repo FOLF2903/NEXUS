@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, User, Shield, MapPin, Eye, EyeOff, FileText, HelpCircle, CheckCircle } from 'lucide-react';
+import { X, User, Shield, MapPin, Eye, EyeOff, FileText, HelpCircle, CheckCircle, AlertCircle } from 'lucide-react';
 import { NPC, ActitudNPC } from '../types';
 import { TagSelector } from './TagSelector';
 import { ETIQUETAS_SUGERIDAS_NPCS } from '../lib/tags';
@@ -90,10 +90,12 @@ export const NpcModal: React.FC<NpcModalProps> = ({
   const [notas, setNotas] = useState('');
   const [etiquetas, setEtiquetas] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    setShowDiscardConfirm(false);
     if (npcToEdit) {
       setNombre(npcToEdit.nombre || '');
       setNombreConocido(npcToEdit.nombre_conocido !== false);
@@ -141,13 +143,11 @@ export const NpcModal: React.FC<NpcModalProps> = ({
   );
 
   const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en este NPC. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
+    if (showDiscardConfirm) {
+      setShowDiscardConfirm(false);
+      onClose();
+    } else if (isDirty) {
+      setShowDiscardConfirm(true);
     } else {
       onClose();
     }
@@ -166,7 +166,7 @@ export const NpcModal: React.FC<NpcModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isDirty, onClose]);
+  }, [isOpen, isDirty, showDiscardConfirm, onClose]);
 
   if (!isOpen) return null;
 
@@ -426,6 +426,35 @@ export const NpcModal: React.FC<NpcModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Alerta responsiva de cambios sin guardar (Iframe-safe, sin popups nativos) */}
+          {showDiscardConfirm && (
+            <div className="px-5 py-3 bg-amber-950/90 border-t border-amber-600/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-200 animate-in fade-in shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Tienes cambios sin guardar en este NPC. ¿Deseas descartarlos y salir?</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 min-h-[38px] text-xs font-semibold"
+                >
+                  Continuar editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiscardConfirm(false);
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white min-h-[38px] text-xs font-semibold"
+                >
+                  Descartar y salir
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Footer fijo */}
           <div className="px-5 sm:px-6 py-3.5 border-t border-slate-800 bg-[#0e1522] shrink-0 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3">

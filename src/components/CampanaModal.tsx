@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Shield, BookMarked, Calendar, AlignLeft, HelpCircle } from 'lucide-react';
+import { X, Shield, BookMarked, Calendar, AlignLeft, HelpCircle, AlertCircle } from 'lucide-react';
 import { Campana, EstadoCampana } from '../types';
+import { generateUUID } from '../services/supabaseService';
 
 interface CampanaModalProps {
   isOpen: boolean;
@@ -33,10 +34,12 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
   );
   const [notasDm, setNotasDm] = useState('');
   const [errorNombre, setErrorNombre] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    setShowDiscardConfirm(false);
     if (campanaToEdit) {
       setNombre(campanaToEdit.nombre);
       if (SISTEMAS_PREDEFINIDOS.includes(campanaToEdit.sistema)) {
@@ -81,13 +84,11 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
   );
 
   const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en la campaña. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
+    if (showDiscardConfirm) {
+      setShowDiscardConfirm(false);
+      onClose();
+    } else if (isDirty) {
+      setShowDiscardConfirm(true);
     } else {
       onClose();
     }
@@ -106,7 +107,7 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isDirty, onClose]);
+  }, [isOpen, isDirty, showDiscardConfirm, onClose]);
 
   if (!isOpen) return null;
 
@@ -121,7 +122,7 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
       sistema === 'Otro' ? otroSistema.trim() || 'Sistema personalizado' : sistema;
 
     const campana: Campana = {
-      id: campanaToEdit?.id || `camp_${Date.now()}`,
+      id: campanaToEdit?.id || generateUUID(),
       nombre: nombre.trim(),
       sistema: sistemaFinal,
       descripcion: descripcion.trim(),
@@ -326,6 +327,35 @@ export const CampanaModal: React.FC<CampanaModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Alerta responsiva de cambios sin guardar (Iframe-safe, sin popups nativos) */}
+          {showDiscardConfirm && (
+            <div className="px-5 py-3 bg-amber-950/90 border-t border-amber-600/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-200 animate-in fade-in shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Tienes cambios sin guardar en la campaña. ¿Deseas descartarlos y salir?</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 min-h-[38px] text-xs font-semibold"
+                >
+                  Continuar editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiscardConfirm(false);
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white min-h-[38px] text-xs font-semibold"
+                >
+                  Descartar y salir
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Footer fijo */}
           <div className="px-5 sm:px-6 py-3.5 border-t border-slate-800 bg-[#0e1522] shrink-0 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3">

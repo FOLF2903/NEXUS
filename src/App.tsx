@@ -60,6 +60,7 @@ import {
   applyTemaToDOM,
   exportarDatos,
   cargarEjemploInicial,
+  migrateAllLegacyIdsToUUIDs,
 } from './lib/storage';
 import {
   syncSessionEntities,
@@ -118,6 +119,8 @@ import {
   subscribeToCampaignRealtime,
   fetchUserProfile,
   uploadLocalCampaignToCloud,
+  isUUID,
+  generateUUID,
 } from './services/supabaseService';
 import { Cloud, HardDrive, Crown, UserPlus, Key, LogIn, ExternalLink, ArrowRight } from 'lucide-react';
 
@@ -270,21 +273,45 @@ export default function App() {
     setIsLoadingCloud(true);
     try {
       const list = await fetchUserCampaigns(uid);
-      setCloudCampaignsWithRoles(list);
       const cloudCamps = list.map((c) => c.campana);
-      setCampanas(cloudCamps);
-      // Sincronizar también con localStorage para que si el usuario cambia a Modo Local
-      // o recarga offline, sus campañas de la nube sigan accesibles
+      const localCamps = getCampanas();
+
+      const allWithRoles: CloudCampaignWithRole[] = [
+        ...list,
+        ...localCamps
+          .filter((lc) => !list.some((item) => item.campana.id === lc.id))
+          .map((lc) => ({
+            campana: lc,
+            role: 'host' as SupabaseRole,
+            isHost: true,
+            memberCount: 1,
+          })),
+      ];
+      setCloudCampaignsWithRoles(allWithRoles);
+
       if (cloudCamps.length > 0) {
-        const localCamps = getCampanas();
         const merged = [
           ...cloudCamps,
           ...localCamps.filter((lc) => !cloudCamps.some((cc) => cc.id === lc.id)),
         ];
+        setCampanas(merged);
         saveCampanas(merged);
+      } else {
+        // Si la nube aún no tiene campañas o no está configurada, mantener las campañas locales
+        setCampanas(localCamps);
       }
     } catch (err) {
       console.error('Error al cargar campañas en la nube:', err);
+      const localCamps = getCampanas();
+      setCampanas(localCamps);
+      setCloudCampaignsWithRoles(
+        localCamps.map((lc) => ({
+          campana: lc,
+          role: 'host' as SupabaseRole,
+          isHost: true,
+          memberCount: 1,
+        }))
+      );
     } finally {
       setIsLoadingCloud(false);
     }
@@ -349,39 +376,66 @@ export default function App() {
     setSelectedMisionId(null);
     setSelectedObjetoId(null);
     setSelectedMonstruoId(null);
+
+    // Siempre recargar datos locales para que las listas estén listas
+    const storedCampanas = getCampanas();
+    const storedSesiones = getSesiones();
+    const storedNpcs = getNpcs();
+    const storedLugares = getLugares();
+    const storedMisiones = getMisiones();
+    const storedObjetos = getObjetos();
+    const storedMonstruos = getMonstruos();
+    const storedPjs = getPjs();
+
+    setSesiones(storedSesiones);
+    setNpcs(storedNpcs);
+    setLugares(storedLugares);
+    setMisiones(storedMisiones);
+    setObjetos(storedObjetos);
+    setMonstruos(storedMonstruos);
+    setPjs(storedPjs);
+
+    if (newMode === 'local') {
+      setCampanas(storedCampanas);
+    } else if (currentUser?.id) {
+      loadCloudCampaigns(currentUser.id);
+    }
   };
 
-  // Cargar datos según modo de almacenamiento
+  // Cargar datos según modo de almacenamiento (Arquitectura híbrida offline-first)
   useEffect(() => {
+    // 0. Migrar cualquier ID legado en localStorage a UUIDs estándar para compatibilidad total
+    migrateAllLegacyIdsToUUIDs();
+
+    // 1. Siempre cargar primero los datos locales de localStorage (resiliencia offline-first)
+    const storedCampanas = getCampanas();
+    const storedSesiones = getSesiones();
+    const storedNpcs = getNpcs();
+    const storedLugares = getLugares();
+    const storedMisiones = getMisiones();
+    const storedObjetos = getObjetos();
+    const storedMonstruos = getMonstruos();
+    const storedPjs = getPjs();
+
+    setSesiones(storedSesiones);
+    setNpcs(storedNpcs);
+    setLugares(storedLugares);
+    setMisiones(storedMisiones);
+    setObjetos(storedObjetos);
+    setMonstruos(storedMonstruos);
+    setPjs(storedPjs);
+
     if (storageMode === 'cloud') {
       if (currentUser?.id) {
         loadCloudCampaigns(currentUser.id);
       } else {
         setCloudCampaignsWithRoles([]);
-        setCampanas([]);
+        setCampanas(storedCampanas);
       }
-      setLoaded(true);
     } else {
-      // Modo Local (localStorage)
-      const storedCampanas = getCampanas();
-      const storedSesiones = getSesiones();
-      const storedNpcs = getNpcs();
-      const storedLugares = getLugares();
-      const storedMisiones = getMisiones();
-      const storedObjetos = getObjetos();
-      const storedMonstruos = getMonstruos();
-      const storedPjs = getPjs();
-
       setCampanas(storedCampanas);
-      setSesiones(storedSesiones);
-      setNpcs(storedNpcs);
-      setLugares(storedLugares);
-      setMisiones(storedMisiones);
-      setObjetos(storedObjetos);
-      setMonstruos(storedMonstruos);
-      setPjs(storedPjs);
-      setLoaded(true);
     }
+    setLoaded(true);
   }, [storageMode, currentUser?.id, loadCloudCampaigns]);
 
   // Cargar entidades y suscribirse a Realtime cuando se abre una campaña en la nube
@@ -391,25 +445,203 @@ export default function App() {
     let isSubscribed = true;
     fetchCampaignEntities(selectedCampanaId).then((entities) => {
       if (!isSubscribed) return;
-      setSesiones(entities.sesiones);
-      setNpcs(entities.npcs);
-      setLugares(entities.lugares);
-      setMisiones(entities.misiones);
-      setObjetos(entities.objetos);
-      setMonstruos(entities.monstruos);
-      setPjs(entities.pjs);
+
+      const localSesiones = getSesiones();
+      const localNpcs = getNpcs();
+      const localLugares = getLugares();
+      const localMisiones = getMisiones();
+      const localObjetos = getObjetos();
+      const localMonstruos = getMonstruos();
+      const localPjs = getPjs();
+
+      const canSyncToCloud = isUUID(selectedCampanaId);
+
+      // --- 1. SESIONES ---
+      const localSesForCamp = localSesiones.filter((s) => s.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localSesForCamp.forEach((s) => {
+          if (!entities.sesiones.some((es) => es.id === s.id)) {
+            syncCloudSession(s, selectedCampanaId);
+          }
+        });
+      }
+      const mergedSesiones = [
+        ...entities.sesiones,
+        ...localSesForCamp.filter((s) => !entities.sesiones.some((es) => es.id === s.id)),
+        ...localSesiones.filter((s) => s.campana_id !== selectedCampanaId),
+      ];
+      setSesiones(mergedSesiones);
+      saveSesiones(mergedSesiones);
+
+      // --- 2. NPCS ---
+      const localNpcsForCamp = localNpcs.filter((n) => n.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localNpcsForCamp.forEach((n) => {
+          if (!entities.npcs.some((en) => en.id === n.id)) {
+            syncCloudNpc(n, selectedCampanaId);
+          }
+        });
+      }
+      const mergedNpcs = [
+        ...entities.npcs,
+        ...localNpcsForCamp.filter((n) => !entities.npcs.some((en) => en.id === n.id)),
+        ...localNpcs.filter((n) => n.campana_id !== selectedCampanaId),
+      ];
+      setNpcs(mergedNpcs);
+      saveNpcs(mergedNpcs);
+
+      // --- 3. LUGARES ---
+      const localLugForCamp = localLugares.filter((l) => l.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localLugForCamp.forEach((l) => {
+          if (!entities.lugares.some((el) => el.id === l.id)) {
+            syncCloudLugar(l, selectedCampanaId);
+          }
+        });
+      }
+      const mergedLugares = [
+        ...entities.lugares,
+        ...localLugForCamp.filter((l) => !entities.lugares.some((el) => el.id === l.id)),
+        ...localLugares.filter((l) => l.campana_id !== selectedCampanaId),
+      ];
+      setLugares(mergedLugares);
+      saveLugares(mergedLugares);
+
+      // --- 4. MISIONES ---
+      const localMisForCamp = localMisiones.filter((m) => m.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localMisForCamp.forEach((m) => {
+          if (!entities.misiones.some((em) => em.id === m.id)) {
+            syncCloudMision(m, selectedCampanaId);
+          }
+        });
+      }
+      const mergedMisiones = [
+        ...entities.misiones,
+        ...localMisForCamp.filter((m) => !entities.misiones.some((em) => em.id === m.id)),
+        ...localMisiones.filter((m) => m.campana_id !== selectedCampanaId),
+      ];
+      setMisiones(mergedMisiones);
+      saveMisiones(mergedMisiones);
+
+      // --- 5. OBJETOS ---
+      const localObjForCamp = localObjetos.filter((o) => o.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localObjForCamp.forEach((o) => {
+          if (!entities.objetos.some((eo) => eo.id === o.id)) {
+            syncCloudObjeto(o, selectedCampanaId);
+          }
+        });
+      }
+      const mergedObjetos = [
+        ...entities.objetos,
+        ...localObjForCamp.filter((o) => !entities.objetos.some((eo) => eo.id === o.id)),
+        ...localObjetos.filter((o) => o.campana_id !== selectedCampanaId),
+      ];
+      setObjetos(mergedObjetos);
+      saveObjetos(mergedObjetos);
+
+      // --- 6. MONSTRUOS ---
+      const localMonForCamp = localMonstruos.filter((mo) => mo.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localMonForCamp.forEach((mo) => {
+          if (!entities.monstruos.some((em) => em.id === mo.id)) {
+            syncCloudMonstruo(mo, selectedCampanaId);
+          }
+        });
+      }
+      const mergedMonstruos = [
+        ...entities.monstruos,
+        ...localMonForCamp.filter((mo) => !entities.monstruos.some((em) => em.id === mo.id)),
+        ...localMonstruos.filter((mo) => mo.campana_id !== selectedCampanaId),
+      ];
+      setMonstruos(mergedMonstruos);
+      saveMonstruos(mergedMonstruos);
+
+      // --- 7. PJS ---
+      const localPjsForCamp = localPjs.filter((p) => p.campana_id === selectedCampanaId);
+      if (canSyncToCloud) {
+        localPjsForCamp.forEach((p) => {
+          if (!entities.pjs.some((ep) => ep.id === p.id)) {
+            syncCloudPj(p, selectedCampanaId);
+          }
+        });
+      }
+      const mergedPjs = [
+        ...entities.pjs,
+        ...localPjsForCamp.filter((p) => !entities.pjs.some((ep) => ep.id === p.id)),
+        ...localPjs.filter((p) => p.campana_id !== selectedCampanaId),
+      ];
+      setPjs(mergedPjs);
+      savePjs(mergedPjs);
     });
 
     const channel = subscribeToCampaignRealtime(selectedCampanaId, () => {
       fetchCampaignEntities(selectedCampanaId).then((entities) => {
         if (!isSubscribed) return;
-        setSesiones(entities.sesiones);
-        setNpcs(entities.npcs);
-        setLugares(entities.lugares);
-        setMisiones(entities.misiones);
-        setObjetos(entities.objetos);
-        setMonstruos(entities.monstruos);
-        setPjs(entities.pjs);
+        setSesiones((prev) => {
+          const next = [
+            ...entities.sesiones,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.sesiones.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveSesiones(next);
+          return next;
+        });
+        setNpcs((prev) => {
+          const next = [
+            ...entities.npcs,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.npcs.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveNpcs(next);
+          return next;
+        });
+        setLugares((prev) => {
+          const next = [
+            ...entities.lugares,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.lugares.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveLugares(next);
+          return next;
+        });
+        setMisiones((prev) => {
+          const next = [
+            ...entities.misiones,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.misiones.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveMisiones(next);
+          return next;
+        });
+        setObjetos((prev) => {
+          const next = [
+            ...entities.objetos,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.objetos.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveObjetos(next);
+          return next;
+        });
+        setMonstruos((prev) => {
+          const next = [
+            ...entities.monstruos,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.monstruos.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          saveMonstruos(next);
+          return next;
+        });
+        setPjs((prev) => {
+          const next = [
+            ...entities.pjs,
+            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.pjs.some((e) => e.id === p.id)),
+            ...prev.filter((p) => p.campana_id !== selectedCampanaId),
+          ];
+          savePjs(next);
+          return next;
+        });
       });
     });
 
@@ -477,30 +709,51 @@ export default function App() {
   // Actualizar entidad individual (p.ej. notas del DM u otros campos in-situ)
   const handleUpdateCampana = (updatedCampana: Campana) => {
     handleUpdateCampanas(campanas.map((c) => (c.id === updatedCampana.id ? updatedCampana : c)));
+    if (storageMode === 'cloud' && isUUID(updatedCampana.id)) {
+      updateCloudCampaign(updatedCampana);
+    }
   };
 
   const handleUpdateSesion = (updatedSesion: Sesion) => {
     handleUpdateSesiones(sesiones.map((s) => (s.id === updatedSesion.id ? updatedSesion : s)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudSession(updatedSesion, selectedCampanaId);
+    }
   };
 
   const handleUpdateNpc = (updatedNpc: NPC) => {
     handleUpdateNpcs(npcs.map((n) => (n.id === updatedNpc.id ? updatedNpc : n)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudNpc(updatedNpc, selectedCampanaId);
+    }
   };
 
   const handleUpdateLugar = (updatedLugar: Lugar) => {
     handleUpdateLugares(lugares.map((l) => (l.id === updatedLugar.id ? updatedLugar : l)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudLugar(updatedLugar, selectedCampanaId);
+    }
   };
 
   const handleUpdateMision = (updatedMision: Mision) => {
     handleUpdateMisiones(misiones.map((m) => (m.id === updatedMision.id ? updatedMision : m)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudMision(updatedMision, selectedCampanaId);
+    }
   };
 
   const handleUpdateObjeto = (updatedObjeto: Objeto) => {
     handleUpdateObjetos(objetos.map((o) => (o.id === updatedObjeto.id ? updatedObjeto : o)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudObjeto(updatedObjeto, selectedCampanaId);
+    }
   };
 
   const handleUpdateMonstruo = (updatedMonstruo: Monstruo) => {
     handleUpdateMonstruos(monstruos.map((m) => (m.id === updatedMonstruo.id ? updatedMonstruo : m)));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudMonstruo(updatedMonstruo, selectedCampanaId);
+    }
   };
 
   const handleUpdatePj = (updatedPj: PJ) => {
@@ -508,31 +761,60 @@ export default function App() {
     if (selectedPjDetail && selectedPjDetail.id === updatedPj.id) {
       setSelectedPjDetail(updatedPj);
     }
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudPj(updatedPj, selectedCampanaId);
+    }
   };
 
   // Importar entidad individual a la campaña activa (Fase 8)
   const handleImportSingleEntity = (type: SingleEntityType, entity: any, _ignoredRefs: string[]) => {
+    const safeEntity = {
+      ...entity,
+      id: isUUID(entity.id) ? entity.id : generateUUID(),
+      campana_id: selectedCampanaId || entity.campana_id,
+    };
     switch (type) {
       case 'sesion':
-        handleUpdateSesiones([entity, ...sesiones]);
+        handleUpdateSesiones([safeEntity, ...sesiones]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudSession(safeEntity, selectedCampanaId);
+        }
         break;
       case 'npc':
-        handleUpdateNpcs([entity, ...npcs]);
+        handleUpdateNpcs([safeEntity, ...npcs]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudNpc(safeEntity, selectedCampanaId);
+        }
         break;
       case 'lugar':
-        handleUpdateLugares([entity, ...lugares]);
+        handleUpdateLugares([safeEntity, ...lugares]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudLugar(safeEntity, selectedCampanaId);
+        }
         break;
       case 'mision':
-        handleUpdateMisiones([entity, ...misiones]);
+        handleUpdateMisiones([safeEntity, ...misiones]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudMision(safeEntity, selectedCampanaId);
+        }
         break;
       case 'objeto':
-        handleUpdateObjetos([entity, ...objetos]);
+        handleUpdateObjetos([safeEntity, ...objetos]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudObjeto(safeEntity, selectedCampanaId);
+        }
         break;
       case 'monstruo':
-        handleUpdateMonstruos([entity, ...monstruos]);
+        handleUpdateMonstruos([safeEntity, ...monstruos]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudMonstruo(safeEntity, selectedCampanaId);
+        }
         break;
       case 'pj':
-        handleUpdatePjs([entity, ...pjs]);
+        handleUpdatePjs([safeEntity, ...pjs]);
+        if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+          syncCloudPj(safeEntity, selectedCampanaId);
+        }
         break;
     }
   };
@@ -986,23 +1268,13 @@ export default function App() {
     const updatedObjetos = objetos.filter((o) => o.campana_id !== campanaId);
     const updatedMonstruos = monstruos.filter((m) => m.campana_id !== campanaId);
 
-    if (storageMode === 'local') {
-      handleUpdateCampanas(updatedCampanas);
-      handleUpdateSesiones(updatedSesiones);
-      handleUpdateNpcs(updatedNpcs);
-      handleUpdateLugares(updatedLugares);
-      handleUpdateMisiones(updatedMisiones);
-      handleUpdateObjetos(updatedObjetos);
-      handleUpdateMonstruos(updatedMonstruos);
-    } else {
-      setCampanas(updatedCampanas);
-      setSesiones(updatedSesiones);
-      setNpcs(updatedNpcs);
-      setLugares(updatedLugares);
-      setMisiones(updatedMisiones);
-      setObjetos(updatedObjetos);
-      setMonstruos(updatedMonstruos);
-    }
+    handleUpdateCampanas(updatedCampanas);
+    handleUpdateSesiones(updatedSesiones);
+    handleUpdateNpcs(updatedNpcs);
+    handleUpdateLugares(updatedLugares);
+    handleUpdateMisiones(updatedMisiones);
+    handleUpdateObjetos(updatedObjetos);
+    handleUpdateMonstruos(updatedMonstruos);
 
     if (selectedCampanaId === campanaId) {
       setSelectedCampanaId(null);
@@ -1041,6 +1313,15 @@ export default function App() {
     handleUpdateMisiones(updatedMisiones);
     handleUpdateObjetos(updatedObjetos);
     handleUpdateMonstruos(updatedMonstruos);
+
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      syncCloudSession(sesion, selectedCampanaId);
+      updatedNpcs.forEach((n) => syncCloudNpc(n, selectedCampanaId));
+      updatedLugares.forEach((l) => syncCloudLugar(l, selectedCampanaId));
+      updatedMisiones.forEach((m) => syncCloudMision(m, selectedCampanaId));
+      updatedObjetos.forEach((o) => syncCloudObjeto(o, selectedCampanaId));
+      updatedMonstruos.forEach((mo) => syncCloudMonstruo(mo, selectedCampanaId));
+    }
   };
 
   // Manejar eliminación de sesión
@@ -1069,6 +1350,10 @@ export default function App() {
     handleUpdateObjetos(updatedObjetos);
     handleUpdateMonstruos(updatedMonstruos);
 
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(sesionId)) {
+      deleteCloudSession(sesionId);
+    }
+
     if (selectedSesionId === sesionId) {
       setSelectedSesionId(null);
     }
@@ -1096,15 +1381,21 @@ export default function App() {
       };
       const updated = npcs.map((n) => (n.id === updatedNpc.id ? updatedNpc : n));
       handleUpdateNpcs(updated);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudNpc(updatedNpc, selectedCampanaId);
+      }
     } else {
       const newNpc: NPC = {
-        id: `npc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateUUID(),
         campana_id: selectedCampanaId,
         ...npcData,
         sesion_ids: [],
         creado_en: new Date().toISOString(),
       };
       handleUpdateNpcs([newNpc, ...npcs]);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudNpc(newNpc, selectedCampanaId);
+      }
     }
   };
 
@@ -1113,6 +1404,9 @@ export default function App() {
     const updated = npcs.filter((n) => n.id !== npcId);
     handleUpdateNpcs(updated);
     handleUpdateSesiones(cleanupDeletedEntityFromSessions('npc', npcId, sesiones));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(npcId)) {
+      deleteCloudNpc(npcId);
+    }
     if (selectedNpcId === npcId) {
       setSelectedNpcId(null);
     }
@@ -1169,8 +1463,21 @@ export default function App() {
       }
 
       handleUpdateLugares(updatedLugares);
+
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        const saved = updatedLugares.find((l) => l.id === targetId);
+        if (saved) syncCloudLugar(saved, selectedCampanaId);
+        if (oldPadreId && isUUID(oldPadreId)) {
+          const oldP = updatedLugares.find((l) => l.id === oldPadreId);
+          if (oldP) syncCloudLugar(oldP, selectedCampanaId);
+        }
+        if (newPadreId && isUUID(newPadreId)) {
+          const newP = updatedLugares.find((l) => l.id === newPadreId);
+          if (newP) syncCloudLugar(newP, selectedCampanaId);
+        }
+      }
     } else {
-      const newLugarId = `loc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const newLugarId = generateUUID();
       const newLugar: Lugar = {
         id: newLugarId,
         campana_id: selectedCampanaId,
@@ -1196,6 +1503,14 @@ export default function App() {
       }
 
       handleUpdateLugares(updatedLugares);
+
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudLugar(newLugar, selectedCampanaId);
+        if (newLugar.padre_id && isUUID(newLugar.padre_id)) {
+          const parentLoc = updatedLugares.find((l) => l.id === newLugar.padre_id);
+          if (parentLoc) syncCloudLugar(parentLoc, selectedCampanaId);
+        }
+      }
     }
   };
 
@@ -1241,6 +1556,12 @@ export default function App() {
       });
       handleUpdateSesiones(currentSesiones);
 
+      if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+        idsToDelete.forEach((locId) => {
+          if (isUUID(locId)) deleteCloudLugar(locId);
+        });
+      }
+
       if (selectedLugarId && idsToDelete.has(selectedLugarId)) {
         setSelectedLugarId(null);
       }
@@ -1273,6 +1594,14 @@ export default function App() {
       handleUpdateLugares(updatedLugares);
       handleUpdateSesiones(cleanupDeletedEntityFromSessions('lugar', lugarId, sesiones));
 
+      if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+        if (isUUID(lugarId)) deleteCloudLugar(lugarId);
+        directChildren.forEach((child) => {
+          const updatedChild = updatedLugares.find((l) => l.id === child.id);
+          if (updatedChild && isUUID(updatedChild.id)) syncCloudLugar(updatedChild, selectedCampanaId);
+        });
+      }
+
       if (selectedLugarId === lugarId) {
         setSelectedLugarId(null);
       }
@@ -1301,9 +1630,12 @@ export default function App() {
       };
       const updated = misiones.map((m) => (m.id === updatedMision.id ? updatedMision : m));
       handleUpdateMisiones(updated);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudMision(updatedMision, selectedCampanaId);
+      }
     } else {
       const newMision: Mision = {
-        id: `mision_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateUUID(),
         campana_id: selectedCampanaId,
         ...misionData,
         sesion_ids: [],
@@ -1312,6 +1644,9 @@ export default function App() {
         creado_en: new Date().toISOString(),
       };
       handleUpdateMisiones([newMision, ...misiones]);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudMision(newMision, selectedCampanaId);
+      }
     }
   };
 
@@ -1320,6 +1655,9 @@ export default function App() {
     const updated = misiones.filter((m) => m.id !== mision.id);
     handleUpdateMisiones(updated);
     handleUpdateSesiones(cleanupDeletedEntityFromSessions('mision', mision.id, sesiones));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(mision.id)) {
+      deleteCloudMision(mision.id);
+    }
     if (selectedMisionId === mision.id) {
       setSelectedMisionId(null);
     }
@@ -1335,6 +1673,10 @@ export default function App() {
       return { ...m, pasos: updatedPasos };
     });
     handleUpdateMisiones(updated);
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      const target = updated.find((m) => m.id === misionId);
+      if (target) syncCloudMision(target, selectedCampanaId);
+    }
   };
 
   // Actualizar el estado de una misión
@@ -1344,6 +1686,10 @@ export default function App() {
       return { ...m, estado: nuevoEstado };
     });
     handleUpdateMisiones(updated);
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      const target = updated.find((m) => m.id === misionId);
+      if (target) syncCloudMision(target, selectedCampanaId);
+    }
   };
 
   // Añadir un paso rápido a una misión
@@ -1351,13 +1697,17 @@ export default function App() {
     const updated = misiones.map((m) => {
       if (m.id !== misionId) return m;
       const nuevoPaso = {
-        id: `paso_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: generateUUID(),
         texto: textoPaso.trim(),
         completado: false,
       };
       return { ...m, pasos: [...m.pasos, nuevoPaso] };
     });
     handleUpdateMisiones(updated);
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      const target = updated.find((m) => m.id === misionId);
+      if (target) syncCloudMision(target, selectedCampanaId);
+    }
   };
 
   // Manejar guardado de Objeto (crear o editar)
@@ -1382,9 +1732,12 @@ export default function App() {
       };
       const updated = objetos.map((o) => (o.id === updatedObjeto.id ? updatedObjeto : o));
       handleUpdateObjetos(updated);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudObjeto(updatedObjeto, selectedCampanaId);
+      }
     } else {
       const newObjeto: Objeto = {
-        id: `objeto_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateUUID(),
         campana_id: selectedCampanaId,
         ...objetoData,
         sesion_ids: [],
@@ -1392,6 +1745,9 @@ export default function App() {
         creado_en: new Date().toISOString(),
       };
       handleUpdateObjetos([newObjeto, ...objetos]);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudObjeto(newObjeto, selectedCampanaId);
+      }
     }
   };
 
@@ -1400,6 +1756,9 @@ export default function App() {
     const updated = objetos.filter((o) => o.id !== objeto.id);
     handleUpdateObjetos(updated);
     handleUpdateSesiones(cleanupDeletedEntityFromSessions('objeto', objeto.id, sesiones));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(objeto.id)) {
+      deleteCloudObjeto(objeto.id);
+    }
     if (selectedObjetoId === objeto.id) {
       setSelectedObjetoId(null);
     }
@@ -1415,15 +1774,21 @@ export default function App() {
       };
       const updated = monstruos.map((m) => (m.id === updatedMonstruo.id ? updatedMonstruo : m));
       handleUpdateMonstruos(updated);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudMonstruo(updatedMonstruo, selectedCampanaId);
+      }
     } else {
       const newMonstruo: Monstruo = {
         ...(monstruoData as Omit<Monstruo, 'id' | 'creado_en'>),
-        id: `monstruo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateUUID(),
         campana_id: selectedCampanaId,
         sesion_ids: [],
         creado_en: new Date().toISOString(),
       };
       handleUpdateMonstruos([newMonstruo, ...monstruos]);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudMonstruo(newMonstruo, selectedCampanaId);
+      }
     }
   };
 
@@ -1432,6 +1797,9 @@ export default function App() {
     const updated = monstruos.filter((m) => m.id !== monstruo.id);
     handleUpdateMonstruos(updated);
     handleUpdateSesiones(cleanupDeletedEntityFromSessions('monstruo', monstruo.id, sesiones));
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(monstruo.id)) {
+      deleteCloudMonstruo(monstruo.id);
+    }
     if (selectedMonstruoId === monstruo.id) {
       setSelectedMonstruoId(null);
     }
@@ -1443,6 +1811,10 @@ export default function App() {
       m.id === monstruo.id ? { ...m, veces_encontrado: (m.veces_encontrado || 1) + 1 } : m
     );
     handleUpdateMonstruos(updated);
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId)) {
+      const target = updated.find((m) => m.id === monstruo.id);
+      if (target) syncCloudMonstruo(target, selectedCampanaId);
+    }
   };
 
   // Calcular el siguiente número de sesión sugerido para la campaña activa
@@ -1481,14 +1853,20 @@ export default function App() {
       if (selectedPjDetail?.id === updatedPj.id) {
         setSelectedPjDetail(updatedPj);
       }
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudPj(updatedPj, selectedCampanaId);
+      }
     } else {
       const newPj: PJ = {
-        id: `pj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: generateUUID(),
         campana_id: selectedCampanaId,
         creado_en: new Date().toISOString(),
         ...pjData,
       };
       handleUpdatePjs([newPj, ...pjs]);
+      if (storageMode === 'cloud' && isUUID(selectedCampanaId)) {
+        syncCloudPj(newPj, selectedCampanaId);
+      }
     }
   };
 
@@ -1501,6 +1879,10 @@ export default function App() {
       o.quien_lo_lleva === pj.nombre ? { ...o, quien_lo_lleva: null } : o
     );
     handleUpdateObjetos(updatedObjetos);
+
+    if (storageMode === 'cloud' && selectedCampanaId && isUUID(selectedCampanaId) && isUUID(pj.id)) {
+      deleteCloudPj(pj.id);
+    }
 
     if (selectedPjDetail?.id === pj.id) {
       setSelectedPjDetail(null);

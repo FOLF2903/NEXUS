@@ -560,9 +560,9 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
 
   const filteredLugares = useMemo(() => {
     return lugares.filter((loc) => {
-      // Si no estamos buscando ni filtrando, solo mostramos los lugares raíz (padre_id === null)
+      // Si no estamos buscando ni filtrando, solo mostramos los lugares raíz (sin padre_id)
       if (!isFilteringLugares) {
-        return loc.padre_id === null;
+        return !loc.padre_id;
       }
 
       if (tipoLugarFilter !== 'todos' && loc.tipo !== tipoLugarFilter) {

@@ -747,25 +747,32 @@ export async function fetchCampaignEntities(campaignId: string): Promise<{
       sesion_ids: n.sesion_ids || [],
       creado_en: n.creado_en || n.created_at || new Date().toISOString(),
     })),
-    lugares: (lugData || []).map((l: any) => ({
-      id: l.id,
-      campana_id: l.campaign_id,
-      nombre: l.nombre,
-      nombre_conocido: l.nombre_conocido ?? true,
-      tipo: l.tipo || 'otro',
-      estado: l.estado || 'conocido',
-      padre_id: l.padre_id || null,
-      hijos: Array.isArray(l.hijos) ? l.hijos : [],
-      descripcion: l.descripcion || '',
-      como_llegar: l.como_llegar || '',
-      que_hay: l.que_hay || '',
-      que_paso: l.que_paso || '',
-      notas: l.notas || '',
-      notas_dm: l.notas_dm || '',
-      etiquetas: l.etiquetas || [],
-      sesion_ids: l.sesion_ids || [],
-      creado_en: l.creado_en || l.created_at || new Date().toISOString(),
-    })),
+    lugares: (() => {
+      const list: Lugar[] = (lugData || []).map((l: any) => ({
+        id: l.id,
+        campana_id: l.campaign_id,
+        nombre: l.nombre,
+        nombre_conocido: l.nombre_conocido ?? true,
+        tipo: l.tipo || 'otro',
+        estado: l.estado || 'conocido',
+        padre_id: l.padre_id || null,
+        hijos: Array.isArray(l.hijos) ? l.hijos : [],
+        descripcion: l.descripcion || '',
+        como_llegar: l.como_llegar || '',
+        que_hay: l.que_hay || '',
+        que_paso: l.que_paso || '',
+        notas: l.notas || '',
+        notas_dm: l.notas_dm || '',
+        etiquetas: l.etiquetas || [],
+        sesion_ids: l.sesion_ids || [],
+        creado_en: l.creado_en || l.created_at || new Date().toISOString(),
+      }));
+      list.forEach((loc) => {
+        const childrenIds = list.filter((child) => child.padre_id === loc.id).map((child) => child.id);
+        loc.hijos = Array.from(new Set([...loc.hijos, ...childrenIds]));
+      });
+      return list;
+    })(),
     misiones: (misData || []).map((m: any) => ({
       id: m.id,
       campana_id: m.campaign_id,
@@ -846,219 +853,274 @@ export async function fetchCampaignEntities(campaignId: string): Promise<{
 // Operaciones individuales de sincronización
 export async function syncCloudSession(sesion: Sesion, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('sessions').upsert({
-    id: sesion.id,
-    campaign_id: campaignId,
-    numero: sesion.numero,
-    titulo: sesion.titulo,
-    fecha_real: sesion.fecha_real,
-    dia_juego_inicio: sesion.dia_juego_inicio ?? 1,
-    dia_juego_fin: sesion.dia_juego_fin || null,
-    duracion_horas: sesion.duracion_horas || null,
-    pj_ids_presentes: sesion.pj_ids_presentes || [],
-    notas: sesion.notas || '',
-    notas_dm: sesion.notas_dm || '',
-    etiquetas: sesion.etiquetas || [],
-    npc_ids: sesion.npc_ids || [],
-    lugar_ids: sesion.lugar_ids || [],
-    mision_ids: sesion.mision_ids || [],
-    objeto_ids: sesion.objeto_ids || [],
-    monstruo_ids: sesion.monstruo_ids || [],
-    creada_en: sesion.creada_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(sesion.id)) return;
+  try {
+    await supabase.from('sessions').upsert({
+      id: sesion.id,
+      campaign_id: campaignId,
+      numero: sesion.numero,
+      titulo: sesion.titulo,
+      fecha_real: sesion.fecha_real,
+      dia_juego_inicio: sesion.dia_juego_inicio ?? 1,
+      dia_juego_fin: sesion.dia_juego_fin || null,
+      duracion_horas: sesion.duracion_horas || null,
+      pj_ids_presentes: sesion.pj_ids_presentes || [],
+      notas: sesion.notas || '',
+      notas_dm: sesion.notas_dm || '',
+      etiquetas: sesion.etiquetas || [],
+      npc_ids: sesion.npc_ids || [],
+      lugar_ids: sesion.lugar_ids || [],
+      mision_ids: sesion.mision_ids || [],
+      objeto_ids: sesion.objeto_ids || [],
+      monstruo_ids: sesion.monstruo_ids || [],
+      creada_en: sesion.creada_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar sesión en la nube:', err);
+  }
 }
 
 export async function deleteCloudSession(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('sessions').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('sessions').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar sesión en la nube:', err);
+  }
 }
 
 export async function syncCloudNpc(npc: NPC, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('npcs').upsert({
-    id: npc.id,
-    campaign_id: campaignId,
-    nombre: npc.nombre,
-    nombre_conocido: npc.nombre_conocido ?? true,
-    rol: npc.rol || null,
-    actitud: npc.actitud || 'neutral',
-    descripcion: npc.descripcion || '',
-    ubicacion_habitual: npc.ubicacion_habitual || '',
-    informacion_conocida: npc.informacion_conocida || '',
-    informacion_sospechada: npc.informacion_sospechada || '',
-    notas: npc.notas || '',
-    notas_dm: npc.notas_dm || '',
-    etiquetas: npc.etiquetas || [],
-    sesion_ids: npc.sesion_ids || [],
-    creado_en: npc.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(npc.id)) return;
+  try {
+    await supabase.from('npcs').upsert({
+      id: npc.id,
+      campaign_id: campaignId,
+      nombre: npc.nombre,
+      nombre_conocido: npc.nombre_conocido ?? true,
+      rol: npc.rol || null,
+      actitud: npc.actitud || 'neutral',
+      descripcion: npc.descripcion || '',
+      ubicacion_habitual: npc.ubicacion_habitual || '',
+      informacion_conocida: npc.informacion_conocida || '',
+      informacion_sospechada: npc.informacion_sospechada || '',
+      notas: npc.notas || '',
+      notas_dm: npc.notas_dm || '',
+      etiquetas: npc.etiquetas || [],
+      sesion_ids: npc.sesion_ids || [],
+      creado_en: npc.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar NPC en la nube:', err);
+  }
 }
 
 export async function deleteCloudNpc(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('npcs').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('npcs').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar NPC en la nube:', err);
+  }
 }
 
 export async function syncCloudLugar(lugar: Lugar, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('lugares').upsert({
-    id: lugar.id,
-    campaign_id: campaignId,
-    nombre: lugar.nombre,
-    nombre_conocido: lugar.nombre_conocido ?? true,
-    tipo: lugar.tipo || 'otro',
-    estado: lugar.estado || 'conocido',
-    padre_id: lugar.padre_id || null,
-    descripcion: lugar.descripcion || '',
-    como_llegar: lugar.como_llegar || '',
-    que_hay: lugar.que_hay || '',
-    que_paso: lugar.que_paso || '',
-    notas: lugar.notas || '',
-    notas_dm: lugar.notas_dm || '',
-    etiquetas: lugar.etiquetas || [],
-    sesion_ids: lugar.sesion_ids || [],
-    creado_en: lugar.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(lugar.id)) return;
+  try {
+    await supabase.from('lugares').upsert({
+      id: lugar.id,
+      campaign_id: campaignId,
+      nombre: lugar.nombre,
+      nombre_conocido: lugar.nombre_conocido ?? true,
+      tipo: lugar.tipo || 'otro',
+      estado: lugar.estado || 'conocido',
+      padre_id: lugar.padre_id || null,
+      descripcion: lugar.descripcion || '',
+      como_llegar: lugar.como_llegar || '',
+      que_hay: lugar.que_hay || '',
+      que_paso: lugar.que_paso || '',
+      notas: lugar.notas || '',
+      notas_dm: lugar.notas_dm || '',
+      etiquetas: lugar.etiquetas || [],
+      sesion_ids: lugar.sesion_ids || [],
+      creado_en: lugar.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar lugar en la nube:', err);
+  }
 }
 
 export async function deleteCloudLugar(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('lugares').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('lugares').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar lugar en la nube:', err);
+  }
 }
 
 export async function syncCloudMision(mision: Mision, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('misiones').upsert({
-    id: mision.id,
-    campaign_id: campaignId,
-    titulo: mision.titulo,
-    descripcion: mision.descripcion || '',
-    estado: mision.estado || 'activa',
-    origen_npc_id: mision.origen_npc_id || null,
-    origen_lugar_id: mision.origen_lugar_id || null,
-    recompensa_conocida: mision.recompensa_conocida || '',
-    recompensa_obtenida: mision.recompensa_obtenida || '',
-    pasos: mision.pasos || [],
-    sesion_activacion_id: mision.sesion_activacion_id || null,
-    sesion_completado_id: mision.sesion_completado_id || null,
-    sesion_ids: mision.sesion_ids || [],
-    notas: mision.notas || '',
-    notas_dm: mision.notas_dm || '',
-    etiquetas: mision.etiquetas || [],
-    creada_en: mision.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(mision.id)) return;
+  try {
+    await supabase.from('misiones').upsert({
+      id: mision.id,
+      campaign_id: campaignId,
+      titulo: mision.titulo,
+      descripcion: mision.descripcion || '',
+      estado: mision.estado || 'activa',
+      origen_npc_id: mision.origen_npc_id || null,
+      origen_lugar_id: mision.origen_lugar_id || null,
+      recompensa_conocida: mision.recompensa_conocida || '',
+      recompensa_obtenida: mision.recompensa_obtenida || '',
+      pasos: mision.pasos || [],
+      sesion_activacion_id: mision.sesion_activacion_id || null,
+      sesion_completado_id: mision.sesion_completado_id || null,
+      sesion_ids: mision.sesion_ids || [],
+      notas: mision.notas || '',
+      notas_dm: mision.notas_dm || '',
+      etiquetas: mision.etiquetas || [],
+      creada_en: mision.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar misión en la nube:', err);
+  }
 }
 
 export async function deleteCloudMision(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('misiones').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('misiones').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar misión en la nube:', err);
+  }
 }
 
 export async function syncCloudObjeto(objeto: Objeto, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('objetos').upsert({
-    id: objeto.id,
-    campaign_id: campaignId,
-    nombre: objeto.nombre,
-    nombre_conocido: objeto.nombre_conocido ?? true,
-    tipo: objeto.tipo || 'comun',
-    donde_lo_conseguimos: objeto.donde_lo_conseguimos || '',
-    efecto_conocido: objeto.efecto_conocido || '',
-    efecto_sospechado: objeto.efecto_sospechado || '',
-    quien_lo_lleva: objeto.quien_lo_lleva || null,
-    descripcion: objeto.descripcion || '',
-    notas: objeto.notas || '',
-    notas_dm: objeto.notas_dm || '',
-    etiquetas: objeto.etiquetas || [],
-    sesion_obtencion_id: objeto.sesion_obtencion_id || null,
-    sesion_ids: objeto.sesion_ids || [],
-    creado_en: objeto.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(objeto.id)) return;
+  try {
+    await supabase.from('objetos').upsert({
+      id: objeto.id,
+      campaign_id: campaignId,
+      nombre: objeto.nombre,
+      nombre_conocido: objeto.nombre_conocido ?? true,
+      tipo: objeto.tipo || 'comun',
+      donde_lo_conseguimos: objeto.donde_lo_conseguimos || '',
+      efecto_conocido: objeto.efecto_conocido || '',
+      efecto_sospechado: objeto.efecto_sospechado || '',
+      quien_lo_lleva: objeto.quien_lo_lleva || null,
+      descripcion: objeto.descripcion || '',
+      notas: objeto.notas || '',
+      notas_dm: objeto.notas_dm || '',
+      etiquetas: objeto.etiquetas || [],
+      sesion_obtencion_id: objeto.sesion_obtencion_id || null,
+      sesion_ids: objeto.sesion_ids || [],
+      creado_en: objeto.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar objeto en la nube:', err);
+  }
 }
 
 export async function deleteCloudObjeto(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('objetos').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('objetos').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar objeto en la nube:', err);
+  }
 }
 
 export async function syncCloudMonstruo(monstruo: Monstruo, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('monstruos').upsert({
-    id: monstruo.id,
-    campaign_id: campaignId,
-    nombre: monstruo.nombre,
-    nombre_conocido: monstruo.nombre_conocido ?? true,
-    tipo: monstruo.tipo || 'humanoide',
-    descripcion_visual: monstruo.descripcion_visual || '',
-    comportamiento: monstruo.comportamiento || '',
-    debilidades: monstruo.debilidades || '',
-    resistencias: monstruo.resistencias || '',
-    donde_lo_vimos: monstruo.donde_lo_vimos || '',
-    veces_encontrado: monstruo.veces_encontrado || 1,
-    notas: monstruo.notas || '',
-    notas_dm: monstruo.notas_dm || '',
-    etiquetas: monstruo.etiquetas || [],
-    sesion_ids: monstruo.sesion_ids || [],
-    creado_en: monstruo.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+  if (!supabase || !isUUID(campaignId) || !isUUID(monstruo.id)) return;
+  try {
+    await supabase.from('monstruos').upsert({
+      id: monstruo.id,
+      campaign_id: campaignId,
+      nombre: monstruo.nombre,
+      nombre_conocido: monstruo.nombre_conocido ?? true,
+      tipo: monstruo.tipo || 'humanoide',
+      descripcion_visual: monstruo.descripcion_visual || '',
+      comportamiento: monstruo.comportamiento || '',
+      debilidades: monstruo.debilidades || '',
+      resistencias: monstruo.resistencias || '',
+      donde_lo_vimos: monstruo.donde_lo_vimos || '',
+      veces_encontrado: monstruo.veces_encontrado || 1,
+      notas: monstruo.notas || '',
+      notas_dm: monstruo.notas_dm || '',
+      etiquetas: monstruo.etiquetas || [],
+      sesion_ids: monstruo.sesion_ids || [],
+      creado_en: monstruo.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar monstruo en la nube:', err);
+  }
 }
 
 export async function deleteCloudMonstruo(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('monstruos').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('monstruos').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar monstruo en la nube:', err);
+  }
 }
 
 export async function syncCloudPj(pj: PJ, campaignId: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase || !isUUID(campaignId) || !isUUID(pj.id)) return;
+  try {
+    const { data: userResp } = await supabase.auth.getUser();
+    const currentUserId = userResp.user?.id;
 
-  const { data: userResp } = await supabase.auth.getUser();
-  const currentUserId = userResp.user?.id;
-
-  await supabase.from('pjs').upsert({
-    id: pj.id,
-    campaign_id: campaignId,
-    user_id: pj.user_id || currentUserId,
-    nombre: pj.nombre,
-    clase: pj.clase,
-    raza: pj.raza,
-    nivel: pj.nivel,
-    pg_max: pj.pg_max ?? 10,
-    ca: pj.ca ?? 10,
-    descripcion: pj.descripcion || '',
-    personalidad: pj.personalidad || '',
-    trasfondo: pj.trasfondo || '',
-    notas: pj.notas || '',
-    notas_dm: pj.notas_dm || '',
-    estado: pj.estado || 'activo',
-    etiquetas: pj.etiquetas || [],
-    creado_en: pj.creado_en,
-    actualizado_en: new Date().toISOString(),
-  });
+    await supabase.from('pjs').upsert({
+      id: pj.id,
+      campaign_id: campaignId,
+      user_id: pj.user_id || currentUserId,
+      nombre: pj.nombre,
+      clase: pj.clase,
+      raza: pj.raza,
+      nivel: pj.nivel,
+      pg_max: pj.pg_max ?? 10,
+      ca: pj.ca ?? 10,
+      descripcion: pj.descripcion || '',
+      personalidad: pj.personalidad || '',
+      trasfondo: pj.trasfondo || '',
+      notas: pj.notas || '',
+      notas_dm: pj.notas_dm || '',
+      estado: pj.estado || 'activo',
+      etiquetas: pj.etiquetas || [],
+      creado_en: pj.creado_en,
+      actualizado_en: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Aviso al sincronizar PJ en la nube:', err);
+  }
 }
 
 export async function deleteCloudPj(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
-  await supabase.from('pjs').delete().eq('id', id);
+  if (!supabase || !isUUID(id)) return;
+  try {
+    await supabase.from('pjs').delete().eq('id', id);
+  } catch (err) {
+    console.warn('Aviso al eliminar PJ en la nube:', err);
+  }
 }
 
 // ==============================================================================

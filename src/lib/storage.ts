@@ -230,6 +230,7 @@ export function getLugares(): Lugar[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.map((loc: Lugar) => ({
       ...loc,
+      padre_id: loc.padre_id ? loc.padre_id : null,
       hijos: Array.isArray(loc.hijos) ? loc.hijos : [],
       etiquetas: cleanAndNormalizeTags(loc.etiquetas || []),
       sesion_ids: Array.isArray(loc.sesion_ids) ? loc.sesion_ids : [],
@@ -244,6 +245,7 @@ export function saveLugares(lugares: Lugar[]): void {
   try {
     const normalized = lugares.map((loc) => ({
       ...loc,
+      padre_id: loc.padre_id ? loc.padre_id : null,
       hijos: Array.isArray(loc.hijos) ? loc.hijos : [],
       etiquetas: cleanAndNormalizeTags(loc.etiquetas || []),
       sesion_ids: Array.isArray(loc.sesion_ids) ? loc.sesion_ids : [],
@@ -901,3 +903,144 @@ Tras interrogar al último goblin superviviente, confesó que su jefe Klarg llev
     pjs: [pjEjemplo1, pjEjemplo2],
   };
 }
+
+export function isUUID(str?: string | null): boolean {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function migrateAllLegacyIdsToUUIDs(): void {
+  try {
+    const rawCampanas = getCampanas();
+    const rawSesiones = getSesiones();
+    const rawNpcs = getNpcs();
+    const rawLugares = getLugares();
+    const rawMisiones = getMisiones();
+    const rawObjetos = getObjetos();
+    const rawMonstruos = getMonstruos();
+    const rawPjs = getPjs();
+
+    const hasLegacyIds =
+      rawCampanas.some((c) => !isUUID(c.id)) ||
+      rawSesiones.some((s) => !isUUID(s.id)) ||
+      rawNpcs.some((n) => !isUUID(n.id)) ||
+      rawLugares.some((l) => !isUUID(l.id)) ||
+      rawMisiones.some((m) => !isUUID(m.id)) ||
+      rawObjetos.some((o) => !isUUID(o.id)) ||
+      rawMonstruos.some((mo) => !isUUID(mo.id)) ||
+      rawPjs.some((p) => !isUUID(p.id));
+
+    if (!hasLegacyIds) return;
+
+    const idMap = new Map<string, string>();
+    const getOrGen = (oldId: string): string => {
+      if (isUUID(oldId)) return oldId;
+      if (!idMap.has(oldId)) {
+        idMap.set(oldId, generateUUID());
+      }
+      return idMap.get(oldId)!;
+    };
+
+    rawCampanas.forEach((c) => getOrGen(c.id));
+    rawSesiones.forEach((s) => getOrGen(s.id));
+    rawNpcs.forEach((n) => getOrGen(n.id));
+    rawLugares.forEach((l) => getOrGen(l.id));
+    rawMisiones.forEach((m) => getOrGen(m.id));
+    rawObjetos.forEach((o) => getOrGen(o.id));
+    rawMonstruos.forEach((mo) => getOrGen(mo.id));
+    rawPjs.forEach((p) => getOrGen(p.id));
+
+    const mapId = (id?: string | null): string | null => (id ? idMap.get(id) || id : null);
+    const mapIds = (ids?: string[]): string[] => (ids || []).map((id) => idMap.get(id) || id);
+
+    const migratedCampanas: Campana[] = rawCampanas.map((c) => ({
+      ...c,
+      id: getOrGen(c.id),
+      pj_ids: mapIds(c.pj_ids),
+    }));
+
+    const migratedPjs: PJ[] = rawPjs.map((p) => ({
+      ...p,
+      id: getOrGen(p.id),
+      campana_id: mapId(p.campana_id) || p.campana_id,
+    }));
+
+    const migratedLugares: Lugar[] = rawLugares.map((l) => ({
+      ...l,
+      id: getOrGen(l.id),
+      campana_id: mapId(l.campana_id) || l.campana_id,
+      padre_id: mapId(l.padre_id),
+      hijos: mapIds(l.hijos),
+      sesion_ids: mapIds(l.sesion_ids),
+    }));
+
+    const migratedNpcs: NPC[] = rawNpcs.map((n) => ({
+      ...n,
+      id: getOrGen(n.id),
+      campana_id: mapId(n.campana_id) || n.campana_id,
+      sesion_ids: mapIds(n.sesion_ids),
+    }));
+
+    const migratedMisiones: Mision[] = rawMisiones.map((m) => ({
+      ...m,
+      id: getOrGen(m.id),
+      campana_id: mapId(m.campana_id) || m.campana_id,
+      origen_npc_id: mapId(m.origen_npc_id),
+      origen_lugar_id: mapId(m.origen_lugar_id),
+      sesion_activacion_id: mapId(m.sesion_activacion_id),
+      sesion_completado_id: mapId(m.sesion_completado_id),
+      sesion_ids: mapIds(m.sesion_ids),
+    }));
+
+    const migratedObjetos: Objeto[] = rawObjetos.map((o) => ({
+      ...o,
+      id: getOrGen(o.id),
+      campana_id: mapId(o.campana_id) || o.campana_id,
+      quien_lo_lleva: mapId(o.quien_lo_lleva),
+      sesion_obtencion_id: mapId(o.sesion_obtencion_id),
+      sesion_ids: mapIds(o.sesion_ids),
+    }));
+
+    const migratedMonstruos: Monstruo[] = rawMonstruos.map((mo) => ({
+      ...mo,
+      id: getOrGen(mo.id),
+      campana_id: mapId(mo.campana_id) || mo.campana_id,
+      sesion_ids: mapIds(mo.sesion_ids),
+    }));
+
+    const migratedSesiones: Sesion[] = rawSesiones.map((s) => ({
+      ...s,
+      id: getOrGen(s.id),
+      campana_id: mapId(s.campana_id) || s.campana_id,
+      pj_ids_presentes: mapIds(s.pj_ids_presentes),
+      npc_ids: mapIds(s.npc_ids),
+      lugar_ids: mapIds(s.lugar_ids),
+      mision_ids: mapIds(s.mision_ids),
+      objeto_ids: mapIds(s.objeto_ids),
+      monstruo_ids: mapIds(s.monstruo_ids),
+    }));
+
+    saveCampanas(migratedCampanas);
+    saveSesiones(migratedSesiones);
+    saveNpcs(migratedNpcs);
+    saveLugares(migratedLugares);
+    saveMisiones(migratedMisiones);
+    saveObjetos(migratedObjetos);
+    saveMonstruos(migratedMonstruos);
+    savePjs(migratedPjs);
+  } catch (err) {
+    console.warn('Aviso durante la migración de IDs legacy:', err);
+  }
+}
+

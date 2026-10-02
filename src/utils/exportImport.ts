@@ -11,6 +11,7 @@ import {
   SingleEntityExport,
   CampanaExport,
 } from '../types';
+import { generateUUID } from '../lib/storage';
 
 /**
  * Convierte un texto en un slug seguro para nombres de archivos
@@ -100,10 +101,10 @@ export function exportCampanaCompleta(
 }
 
 /**
- * Genera un ID único para una entidad
+ * Genera un ID único para una entidad compatible con Supabase (UUID v4)
  */
-function generateNewId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+function generateNewId(_prefix?: string): string {
+  return generateUUID();
 }
 
 /**

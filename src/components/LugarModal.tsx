@@ -11,6 +11,7 @@ import {
   Sparkles,
   Layers,
   History,
+  AlertCircle,
 } from 'lucide-react';
 import { Lugar, TipoLugar, EstadoLugar } from '../types';
 import { TagSelector } from './TagSelector';
@@ -105,8 +106,10 @@ export const LugarModal: React.FC<LugarModalProps> = ({
   const [estado, setEstado] = useState<EstadoLugar>('visitado');
   const [etiquetas, setEtiquetas] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   useEffect(() => {
+    setShowDiscardConfirm(false);
     if (isOpen) {
       if (lugarToEdit) {
         setNombre(lugarToEdit.nombre || '');
@@ -168,13 +171,11 @@ export const LugarModal: React.FC<LugarModalProps> = ({
   );
 
   const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en este lugar. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
+    if (showDiscardConfirm) {
+      setShowDiscardConfirm(false);
+      onClose();
+    } else if (isDirty) {
+      setShowDiscardConfirm(true);
     } else {
       onClose();
     }
@@ -201,7 +202,7 @@ export const LugarModal: React.FC<LugarModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isDirty, onClose]);
+  }, [isOpen, isDirty, showDiscardConfirm, onClose]);
 
   // Lista de posibles padres válidos
   const validParentOptions = useMemo(() => {
@@ -510,6 +511,35 @@ export const LugarModal: React.FC<LugarModalProps> = ({
           </div>
 
           </div>
+
+          {/* Alerta responsiva de cambios sin guardar (Iframe-safe, sin popups nativos) */}
+          {showDiscardConfirm && (
+            <div className="px-5 py-3 bg-amber-950/90 border-t border-amber-600/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-200 animate-in fade-in shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Tienes cambios sin guardar en este lugar. ¿Deseas descartarlos y salir?</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 min-h-[38px] text-xs font-semibold"
+                >
+                  Continuar editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiscardConfirm(false);
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white min-h-[38px] text-xs font-semibold"
+                >
+                  Descartar y salir
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Botones de acción fijos en el pie del modal */}
           <div className="px-5 sm:px-6 py-3.5 border-t border-slate-800 bg-[#0e1522] shrink-0 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3">

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Feather, Calendar, Clock, Bookmark, Link2 } from 'lucide-react';
+import { X, Feather, Calendar, Clock, Bookmark, Link2, AlertCircle } from 'lucide-react';
 import { Sesion, NPC, Lugar, Mision, Objeto, Monstruo } from '../types';
 import { TagSelector } from './TagSelector';
 import { EntityMultiSelect, EntitySelectItem } from './EntityMultiSelect';
 import { cleanAndNormalizeTags } from '../lib/tags';
 import { getSesionesByCampana } from '../lib/storage';
+import { generateUUID } from '../services/supabaseService';
 
 interface SesionModalProps {
   isOpen: boolean;
@@ -51,12 +52,14 @@ export const SesionModal: React.FC<SesionModalProps> = ({
   const [objetoIds, setObjetoIds] = useState<string[]>([]);
   const [monstruoIds, setMonstruoIds] = useState<string[]>([]);
   const [errorTitulo, setErrorTitulo] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   const sesionesDeCampana = campanaSesiones || getSesionesByCampana(campanaId);
 
   useEffect(() => {
+    setShowDiscardConfirm(false);
     if (sesionToEdit) {
       setNumero(sesionToEdit.numero);
       setTitulo(sesionToEdit.titulo);
@@ -117,13 +120,11 @@ export const SesionModal: React.FC<SesionModalProps> = ({
   );
 
   const handleRequestClose = () => {
-    if (isDirty) {
-      const confirmLeave = window.confirm(
-        'Tienes cambios sin guardar en esta sesión. ¿Seguro que deseas salir sin guardar?'
-      );
-      if (confirmLeave) {
-        onClose();
-      }
+    if (showDiscardConfirm) {
+      setShowDiscardConfirm(false);
+      onClose();
+    } else if (isDirty) {
+      setShowDiscardConfirm(true);
     } else {
       onClose();
     }
@@ -142,7 +143,7 @@ export const SesionModal: React.FC<SesionModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isDirty, onClose]);
+  }, [isOpen, isDirty, showDiscardConfirm, onClose]);
 
   // Preparar opciones de entidades
   const npcOptions: EntitySelectItem[] = useMemo(
@@ -208,7 +209,7 @@ export const SesionModal: React.FC<SesionModalProps> = ({
     const duracion = duracionHoras !== '' ? Number(duracionHoras) : null;
 
     const sesion: Sesion = {
-      id: sesionToEdit?.id || `ses_${Date.now()}`,
+      id: sesionToEdit?.id || generateUUID(),
       campana_id: campanaId,
       numero: Number(numero),
       titulo: titulo.trim(),
@@ -523,6 +524,35 @@ export const SesionModal: React.FC<SesionModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Alerta responsiva de cambios sin guardar (Iframe-safe, sin popups nativos) */}
+          {showDiscardConfirm && (
+            <div className="px-5 py-3 bg-amber-950/90 border-t border-amber-600/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-amber-200 animate-in fade-in shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Tienes cambios sin guardar. ¿Deseas descartarlos y salir?</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 min-h-[38px] text-xs font-semibold"
+                >
+                  Continuar editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiscardConfirm(false);
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white min-h-[38px] text-xs font-semibold"
+                >
+                  Descartar y salir
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Footer fijo */}
           <div className="px-5 sm:px-6 py-3.5 border-t border-slate-800 bg-[#0e1522] shrink-0 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3">
