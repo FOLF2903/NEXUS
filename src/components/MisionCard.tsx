@@ -177,7 +177,10 @@ export const MisionCard: React.FC<MisionCardProps> = ({
                 {onEdit && (
                   <button
                     type="button"
-                    onClick={() => onEdit(mision)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(mision);
+                    }}
                     title="Editar misión"
                     aria-label="Editar misión"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
@@ -188,7 +191,10 @@ export const MisionCard: React.FC<MisionCardProps> = ({
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => onDelete(mision)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(mision);
+                    }}
                     title="Eliminar misión"
                     aria-label="Eliminar misión"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

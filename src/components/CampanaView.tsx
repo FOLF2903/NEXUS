@@ -1258,7 +1258,10 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                           {onEditSesion && (
                             <button
                               type="button"
-                              onClick={() => onEditSesion(sesion)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditSesion(sesion);
+                              }}
                               title="Editar sesión"
                               aria-label="Editar sesión"
                               className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
@@ -1269,13 +1272,14 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                           {onDeleteSesion && (
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setDeleteTarget({
                                   type: 'sesion',
                                   id: sesion.id,
                                   name: `Sesión ${sesion.numero}: ${sesion.titulo}`,
-                                })
-                              }
+                                });
+                              }}
                               title="Eliminar sesión"
                               aria-label="Eliminar sesión"
                               className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
@@ -1588,7 +1592,7 @@ export const CampanaView: React.FC<CampanaViewProps> = ({
                   pj={pj}
                   objetos={objetos}
                   modoApp={modoApp}
-                  canManageCampaign={canManageCampaign || !isPlayer}
+                  canManageCampaign={canManageCampaign || !isPlayer || !pj.user_id || pj.user_id === currentUserId}
                   onSelect={onSelectPj}
                   onEdit={(p) => {
                     if (isPlayer && p.user_id && currentUserId && p.user_id !== currentUserId) {

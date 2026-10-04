@@ -410,7 +410,11 @@ export const LugarView: React.FC<LugarViewProps> = ({
                   key={child.id}
                   lugar={child}
                   subLugaresCount={childSubCount}
+                  modoApp={modoApp}
+                  canManageCampaign={true}
                   onSelect={onSelectLugar}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
                 />
               );
             })}

@@ -179,7 +179,10 @@ export const ObjetoCard: React.FC<ObjetoCardProps> = ({
                 {onEdit && (
                   <button
                     type="button"
-                    onClick={() => onEdit(objeto)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(objeto);
+                    }}
                     title="Editar objeto"
                     aria-label="Editar objeto"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
@@ -190,7 +193,10 @@ export const ObjetoCard: React.FC<ObjetoCardProps> = ({
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => onDelete(objeto)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(objeto);
+                    }}
                     title="Eliminar objeto"
                     aria-label="Eliminar objeto"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

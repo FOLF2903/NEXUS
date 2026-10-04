@@ -89,7 +89,10 @@ export const NpcCard: React.FC<NpcCardProps> = ({
                 {onEdit && (
                   <button
                     type="button"
-                    onClick={() => onEdit(npc)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(npc);
+                    }}
                     title="Editar ficha del NPC"
                     aria-label="Editar ficha del NPC"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
@@ -100,7 +103,10 @@ export const NpcCard: React.FC<NpcCardProps> = ({
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => onDelete(npc)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(npc);
+                    }}
                     title="Eliminar NPC"
                     aria-label="Eliminar NPC"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

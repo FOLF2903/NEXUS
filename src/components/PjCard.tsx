@@ -81,7 +81,10 @@ export const PjCard: React.FC<PjCardProps> = ({
             >
               <button
                 type="button"
-                onClick={() => onEdit(pj)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(pj);
+                }}
                 title="Editar ficha"
                 aria-label="Editar ficha"
                 className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-200 hover:bg-slate-800 transition-colors"
@@ -90,7 +93,10 @@ export const PjCard: React.FC<PjCardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => onDelete(pj)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(pj);
+                }}
                 title="Eliminar personaje"
                 aria-label="Eliminar personaje"
                 className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

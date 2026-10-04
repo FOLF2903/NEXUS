@@ -176,7 +176,10 @@ export const MonstruoCard: React.FC<MonstruoCardProps> = ({
                 {onEdit && (
                   <button
                     type="button"
-                    onClick={() => onEdit(monstruo)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(monstruo);
+                    }}
                     title="Editar criatura"
                     aria-label="Editar criatura"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
@@ -187,7 +190,10 @@ export const MonstruoCard: React.FC<MonstruoCardProps> = ({
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => onDelete(monstruo)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(monstruo);
+                    }}
                     title="Eliminar criatura"
                     aria-label="Eliminar criatura"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

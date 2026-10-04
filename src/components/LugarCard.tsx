@@ -101,7 +101,10 @@ export const LugarCard: React.FC<LugarCardProps> = ({
                 {onEdit && (
                   <button
                     type="button"
-                    onClick={() => onEdit(lugar)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(lugar);
+                    }}
                     title="Editar lugar"
                     aria-label="Editar lugar"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
@@ -112,7 +115,10 @@ export const LugarCard: React.FC<LugarCardProps> = ({
                 {onDelete && (
                   <button
                     type="button"
-                    onClick={() => onDelete(lugar)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(lugar);
+                    }}
                     title="Eliminar lugar"
                     aria-label="Eliminar lugar"
                     className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"

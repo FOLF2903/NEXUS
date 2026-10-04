@@ -582,7 +582,6 @@ export default function App() {
         setSesiones((prev) => {
           const next = [
             ...entities.sesiones,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.sesiones.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveSesiones(next);
@@ -591,7 +590,6 @@ export default function App() {
         setNpcs((prev) => {
           const next = [
             ...entities.npcs,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.npcs.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveNpcs(next);
@@ -600,7 +598,6 @@ export default function App() {
         setLugares((prev) => {
           const next = [
             ...entities.lugares,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.lugares.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveLugares(next);
@@ -609,7 +606,6 @@ export default function App() {
         setMisiones((prev) => {
           const next = [
             ...entities.misiones,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.misiones.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveMisiones(next);
@@ -618,7 +614,6 @@ export default function App() {
         setObjetos((prev) => {
           const next = [
             ...entities.objetos,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.objetos.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveObjetos(next);
@@ -627,7 +622,6 @@ export default function App() {
         setMonstruos((prev) => {
           const next = [
             ...entities.monstruos,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.monstruos.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           saveMonstruos(next);
@@ -636,7 +630,6 @@ export default function App() {
         setPjs((prev) => {
           const next = [
             ...entities.pjs,
-            ...prev.filter((p) => p.campana_id === selectedCampanaId && !entities.pjs.some((e) => e.id === p.id)),
             ...prev.filter((p) => p.campana_id !== selectedCampanaId),
           ];
           savePjs(next);
@@ -1860,6 +1853,7 @@ export default function App() {
       const newPj: PJ = {
         id: generateUUID(),
         campana_id: selectedCampanaId,
+        user_id: currentUser?.id,
         creado_en: new Date().toISOString(),
         ...pjData,
       };
@@ -2261,7 +2255,10 @@ export default function App() {
               setLugarToEdit(lugar);
               setIsLugarModalOpen(true);
             }}
-            onDeleteLugar={(lugar) => setLugarToDelete(lugar)}
+            onDeleteLugar={(lugar) => {
+              setLugarToDelete(lugar);
+              setIsLugarDeleteModalOpen(true);
+            }}
             onNuevaMision={() => {
               setActiveCampaignTab('misiones');
               setMisionToEdit(null);
@@ -3046,7 +3043,7 @@ export default function App() {
 
       {/* MODAL: Confirmar eliminación de Lugar (con gestión de jerarquía) */}
       <LugarDeleteModal
-        isOpen={isLugarDeleteModalOpen}
+        isOpen={isLugarDeleteModalOpen || Boolean(lugarToDelete)}
         lugar={lugarToDelete}
         todosLosLugares={activeCampanaLugares}
         onClose={() => {
